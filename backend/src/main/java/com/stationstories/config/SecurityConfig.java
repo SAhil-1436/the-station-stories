@@ -56,7 +56,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/public/**").permitAll()
 
                         // 4. Authentication Endpoints
-                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/setup-admin").permitAll()
 
                         // 5. POS Billing Endpoints (Protected for Cashier and Admin roles)
                         .requestMatchers("/api/v1/pos/**").hasAnyAuthority("ROLE_CASHIER", "ROLE_ADMIN")

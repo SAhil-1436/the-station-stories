@@ -6,7 +6,7 @@ import org.springframework.test.context.TestPropertySource;
 
 @SpringBootTest
 @TestPropertySource(properties = {
-        "spring.flyway.enabled=false",
+        "spring.flyway.enabled=true",
         "spring.datasource.url=jdbc:mysql://localhost:3306/the_station_stories?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true",
         "spring.datasource.username=root",
         "spring.datasource.password=${DB_PASSWORD}",

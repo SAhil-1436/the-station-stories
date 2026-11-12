@@ -60,18 +60,19 @@
 - **State Management**: React Context API + Custom Hooks (`AuthContext`, `CartContext`, `LanguageContext`).
 
 ### Backend
-- **Platform**: Java 21 (LTS release, virtual threads capability, record types, pattern matching).
-- **Framework**: Spring Boot 3.3.x (Spring Framework 6, Jakarta EE 10).
+- **Platform**: Java 21 bytecode release targeting, running on verified Java 26.0.1 runtime (macOS ARM64).
+- **Framework**: Spring Boot 3.3.5 (Spring Framework 6.1.14, Jakarta EE 10).
 - **Security**: Spring Security 6 + JJWT 0.12.x (Stateless Bearer JWT authentication, BCrypt password hashing).
-- **Rate Limiting**: Bucket4j in-memory token bucket filter on login endpoints.
-- **Persistence**: Spring Data JPA + Hibernate 6.x.
-- **Database Migrations**: Flyway (Immutable version-controlled schema scripts).
+- **Rate Limiting**: In-memory token bucket rate limiter (5 attempts per minute per IP on login endpoints).
+- **Persistence**: Spring Data JPA + Hibernate 6.5.x.
+- **Database Migrations**: Flyway 10.10.0 (Immutable version-controlled schema scripts).
 - **Connection Pool**: HikariCP (High-throughput, low-latency connection management).
 - **Data Validation**: Hibernate Validator / `jakarta.validation` annotations on all incoming DTOs.
+- **API Documentation**: SpringDoc OpenAPI 3.0 (`/api-docs` and `/swagger-ui.html`).
 - **Build Tool**: Apache Maven 3.9+.
 
 ### Database
-- **Engine**: MySQL 8.0+ (`the_station_stories`).
+- **Engine**: MySQL 9.5.0 (`the_station_stories`).
 - **Character Set**: `utf8mb4` with `utf8mb4_unicode_ci` collation (supporting English, Hindi Devnagari script, and emojis).
 - **Storage Engine**: InnoDB (ACID transactions, foreign key integrity, row-level locking for billing sequences).
 
