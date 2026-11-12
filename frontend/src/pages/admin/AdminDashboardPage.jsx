@@ -92,7 +92,7 @@ export default function AdminDashboardPage() {
   const moduleShortcuts = [
     { title: 'Menu Catalog', path: '/admin/menu', icon: Utensils, phase: 'Live' },
     { title: 'Categories', path: '/admin/categories', icon: Layers, phase: 'Live' },
-    { title: 'Bills & Orders', path: '/admin/bills', icon: Receipt, phase: 'Phase 4.5' },
+    { title: 'Bills & Orders', path: '/admin/bills', icon: Receipt, phase: 'Live' },
     { title: 'Staff Accounts', path: '/admin/staff', icon: Users, phase: 'Phase 4.6' },
     { title: 'Reports', path: '/admin/reports', icon: BarChart3, phase: 'Phase 4.7' },
     { title: 'Settings & GST', path: '/admin/settings', icon: Settings, phase: 'Phase 4.6' },

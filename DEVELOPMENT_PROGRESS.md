@@ -24,7 +24,7 @@
 | **Phase 1** | Project Foundation and Environment Setup | ✅ **Completed & Verified** | Preserved Java 26.0.1 (release 21 bytecode) & MySQL 9.5.0 compatibility |
 | **Phase 3** | Public Customer Website Design and Frontend | ✅ **Completed & Verified** | Approved Palette (#F7F1E8, #45213F, #C5A16B), 21 Viewports Tested, [PHASE_3_FINAL_REVIEW.md](file:///Users/sahil/Documents/Station_Stories/PHASE_3_FINAL_REVIEW.md) |
 | **Phase 2** | Backend Business Logic and APIs | ✅ **Completed & Verified** | 24/24 Tests Passed, 37 Controller Mappings Verified, [PHASE_2_BACKEND_VERIFICATION.md](file:///Users/sahil/Documents/Station_Stories/PHASE_2_BACKEND_VERIFICATION.md) |
-| **Phase 4** | Admin Dashboard | 🟡 **In Progress (Phase 4.4 Completed)** | Phase 4.1–4.4 Complete (Auth, Layout, KPIs, Menu & Category Management); Phase 4.5 next, [PHASE_4_4_IMPLEMENTATION_REPORT.md](file:///Users/sahil/Documents/Station_Stories/PHASE_4_4_IMPLEMENTATION_REPORT.md) |
+| **Phase 4** | Admin Dashboard | 🟡 **In Progress (Phase 4.5 Completed)** | Phase 4.1–4.5 Complete (Auth, Layout, KPIs, Menu & Categories, Bills Management & Cancellation); Phase 4.6 next, [PHASE_4_5_IMPLEMENTATION_REPORT.md](file:///Users/sahil/Documents/Station_Stories/PHASE_4_5_IMPLEMENTATION_REPORT.md) |
 | **Phase 5** | Local POS and Billing System | ⏳ **Pending** | Depends on Phase 4 |
 | **Phase 6** | Testing, Security, Windows Deployment, Backup and Production Launch | ⏳ **Pending** | Depends on Phase 5 |
 
