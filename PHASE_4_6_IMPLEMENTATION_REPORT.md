@@ -140,35 +140,61 @@ Execution of `npm run build` in `frontend/`:
 vite v5.4.21 building for production...
 ✓ 2147 modules transformed.
 dist/index.html                          1.40 kB │ gzip:   0.69 kB
-dist/assets/index-BaaO1l7R.css          60.97 kB │ gzip:  10.28 kB
+dist/assets/index-dfYkzQ4X.css          61.06 kB │ gzip:  10.29 kB
 dist/assets/vendor-icons-DtT6x9Ke.js    39.44 kB │ gzip:   8.05 kB
 dist/assets/vendor-motion-DWkJKsgf.js  143.66 kB │ gzip:  48.67 kB
 dist/assets/vendor-react-BRkJHJC4.js   163.87 kB │ gzip:  53.42 kB
-dist/assets/index-BV6pGRD4.js          425.42 kB │ gzip: 103.89 kB
-✓ built in 1.40s
+dist/assets/index-56iUb138.js          427.72 kB │ gzip: 104.09 kB
+✓ built in 1.57s
 ```
 **Result**: Build succeeded with **0 errors and 0 warnings**.
 
 ---
 
-## 7. Tests Performed & Not Performed
+## 7. Corrective Patch Implementation (Phase 4.6 Patch)
 
-### 7.1 Tests Performed
-1. **Frontend Production Build**: Verified zero compilation, syntax, or typing errors.
-2. **Admin Authentication**: Verified JWT bearer token generation via `POST /api/v1/auth/login` (`200 OK`).
-3. **Settings Contract Inspection**: Verified `GET /api/v1/admin/settings` returns all 17 expected fields matching `RestaurantSettingResponse` with 100% field parity (`200 OK`).
-4. **Staff Input Validation Rejection**: Dispatched an invalid staff registration payload (short password, missing company card, invalid role) to `POST /api/v1/admin/users/staff` and confirmed the backend properly rejected it with HTTP 400 Bad Request.
-5. **Phase 3 Public Website Compatibility**: Verified public endpoints (`/restaurant-info`, `/categories`, `/menu`) remain completely operational with zero regression.
+A targeted corrective patch was applied to Phase 4.6 without refactoring page architectures or modifying existing API contracts:
 
-### 7.2 Tests NOT Performed & Justification
-- **Live Staff Account Creation**: **NOT PERFORMED**.
-  - **Reason**: Per user prompt (*"For POST staff and PUT settings live API tests, use only a disposable development database and explicitly designated test data. Do not create real staff accounts or overwrite actual restaurant settings for testing"*), creating persistent staff accounts in the active database was avoided to prevent credential pollution.
-- **Live Settings Overwrite**: **NOT PERFORMED**.
-  - **Reason**: Calling `PUT /api/v1/admin/settings` permanently mutates the restaurant's stored configuration and triggers an audit log event (`TAX_POLICY_CHANGED` or `SETTINGS_UPDATED`). In accordance with testing constraints, settings were inspected via read-only GET without destructive overwrites.
+1. **Dynamic Staff Account Status Rendering (`StaffManagementPage.jsx`)**:
+   - Replaced hardcoded status display with conditional evaluation of the actual backend response value `createdUser.active`.
+   - When `createdUser.active === true`, displays green `Active & Ready for Login` badge with login guidance.
+   - When `createdUser.active === false`, displays neutral `Inactive` badge with notice that administrative activation is required.
+
+2. **GSTIN Validation & Uppercase Normalization (`SettingsPage.jsx`)**:
+   - When GST is enabled and GSTIN is non-empty, validates exact 15-character alphanumeric format via regex `/^[0-9A-Z]{15}$/`.
+   - Automatically normalizes GSTIN input to uppercase in both real-time typing (`onChange`) and the update submission payload.
+   - Preserves GSTIN as optional when GST is enabled, adhering strictly to backend requirements without inventing tax rules.
+
+3. **Standardized Pending Confirmation Badges (`SettingsPage.jsx`)**:
+   - Consistently applied the existing `isPendingPlaceholder()` helper across all settings fields that may contain backend placeholder strings: `restaurantName`, `tagline`, `address`, `phonePrimary`, `phoneSecondary`, `whatsappNumber`, `email`, `openingHours`, `googleMapsUrl`, `instagramHandle`, `upiId`, and `gstin`.
+   - Standardized badge copy to `Pending Confirmation` across all fields.
+
+4. **Preserved Guarantees**:
+   - Preserved all 17 fields in the `RestaurantSettingRequest` payload.
+   - Preserved GST activation confirmation modal dialog.
+   - Preserved historical bill snapshot immutability notices.
+   - Maintained all existing public website APIs and Phase 4.1–4.5 modules.
 
 ---
 
-## 8. Known Backend Limitations
+## 8. Tests Performed & Not Performed
+
+### 8.1 Tests Performed
+1. **Frontend Production Build**: Executed `npm run build` in `frontend/`, verifying zero compilation, bundling, syntax, or typing errors.
+2. **GSTIN Regex & Normalization Logic**: Tested `/^[0-9A-Z]{15}$/` validation against valid 15-character alphanumeric strings and invalid strings (special characters, wrong lengths, lowercase conversion).
+3. **Staff Status Response Logic**: Verified conditional rendering logic for `createdUser.active` for both true and false values.
+4. **Placeholder Detection Consistency**: Verified that `isPendingPlaceholder()` correctly identifies all backend placeholder strings (`[Pending Owner Confirmation...]`) and attaches the `Pending Confirmation` badge across sections A, B, C, and D.
+5. **Phase 3 Public Website & Route Regression**: Verified public endpoints and existing admin views continue building without broken imports or regressions.
+
+### 8.2 Tests NOT Performed & Justification
+- **Live Staff Account Creation**: **NOT PERFORMED**.
+  - **Reason**: Per user prompt (*"Do not call POST staff or PUT settings against real restaurant data"* and *"use only a disposable development database and explicitly designated test data. Do not create real staff accounts or overwrite actual restaurant settings for testing"*), creating persistent staff accounts in the active database was avoided to prevent credential pollution.
+- **Live Settings Overwrite**: **NOT PERFORMED**.
+  - **Reason**: Calling `PUT /api/v1/admin/settings` against active restaurant data permanently mutates the restaurant's stored configuration and triggers an audit log event (`TAX_POLICY_CHANGED` or `SETTINGS_UPDATED`). In accordance with testing constraints, settings mutations were not executed against the live store records.
+
+---
+
+## 9. Known Backend Limitations
 
 1. **Staff Management Scope**: The backend supports staff account creation only (`POST /api/v1/admin/users/staff`). There is no endpoint for listing existing staff accounts, editing staff details, resetting passwords, or deactivating accounts. The UI clearly communicates this limitation to administrators.
 2. **Single-Store Settings Record**: The backend persists a single configuration record (`ID: 1L`). Multi-location or branch-level configuration is not supported.
@@ -176,6 +202,6 @@ dist/assets/index-BV6pGRD4.js          425.42 kB │ gzip: 103.89 kB
 
 ---
 
-## 9. Next Steps
+## 10. Next Steps
 
-Phase 4.6 is complete. In accordance with project instructions, we have stopped here and are ready for **Phase 4.7 (Audit Logs & Daily Sales Reporting)** upon your authorization.
+Phase 4.6 and its corrective patch are complete. In accordance with strict scope boundaries, execution has stopped here. Ready for **Phase 4.7 (Audit Logs & Daily Sales Reporting)** upon your instruction.

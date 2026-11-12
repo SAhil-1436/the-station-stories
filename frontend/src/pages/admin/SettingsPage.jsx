@@ -178,9 +178,10 @@ export default function SettingsPage() {
       errs.sgstRate = 'SGST rate must be a non-negative decimal (e.g. 2.50)';
     }
 
-    if (formData.gstEnabled) {
-      if (formData.gstin && formData.gstin.trim().length > 0 && formData.gstin.trim().length !== 15) {
-        errs.gstin = 'GSTIN format is typically 15 characters (e.g. 22AAAAA0000A1Z5)';
+    if (formData.gstEnabled && formData.gstin && formData.gstin.trim()) {
+      const normalizedGstin = formData.gstin.trim().toUpperCase();
+      if (!/^[0-9A-Z]{15}$/.test(normalizedGstin)) {
+        errs.gstin = 'GSTIN must be exactly 15 alphanumeric characters';
       }
     }
 
@@ -198,6 +199,10 @@ export default function SettingsPage() {
 
     setIsSubmitting(true);
     try {
+      const normalizedGstin = formData.gstin && formData.gstin.trim()
+        ? formData.gstin.trim().toUpperCase()
+        : null;
+
       const payload = {
         restaurantName: formData.restaurantName.trim(),
         tagline: formData.tagline.trim() || null,
@@ -207,7 +212,7 @@ export default function SettingsPage() {
         whatsappNumber: formData.whatsappNumber.trim(),
         email: formData.email.trim() || null,
         gstEnabled: Boolean(formData.gstEnabled),
-        gstin: formData.gstin.trim() || null,
+        gstin: normalizedGstin,
         cgstRate: parseFloat(formData.cgstRate) || 0,
         sgstRate: parseFloat(formData.sgstRate) || 0,
         upiId: formData.upiId.trim() || null,
@@ -430,9 +435,16 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-plum-royal mb-1.5">
-                  Brand Tagline
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-plum-royal">
+                    Brand Tagline
+                  </label>
+                  {isPendingPlaceholder(formData.tagline) && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-300">
+                      Pending Confirmation
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={formData.tagline}
@@ -485,7 +497,7 @@ export default function SettingsPage() {
                   </label>
                   {isPendingPlaceholder(formData.phonePrimary) && (
                     <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-300">
-                      Pending
+                      Pending Confirmation
                     </span>
                   )}
                 </div>
@@ -507,9 +519,16 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-plum-royal mb-1.5">
-                  Secondary Phone (Optional)
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-plum-royal">
+                    Secondary Phone (Optional)
+                  </label>
+                  {isPendingPlaceholder(formData.phoneSecondary) && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-300">
+                      Pending Confirmation
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={formData.phoneSecondary}
@@ -527,7 +546,7 @@ export default function SettingsPage() {
                   </label>
                   {isPendingPlaceholder(formData.whatsappNumber) && (
                     <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-300">
-                      Pending
+                      Pending Confirmation
                     </span>
                   )}
                 </div>
@@ -558,7 +577,7 @@ export default function SettingsPage() {
                   </label>
                   {isPendingPlaceholder(formData.email) && (
                     <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-300">
-                      Pending
+                      Pending Confirmation
                     </span>
                   )}
                 </div>
@@ -573,9 +592,16 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-plum-royal mb-1.5">
-                  Opening Hours <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-plum-royal">
+                    Opening Hours <span className="text-red-500">*</span>
+                  </label>
+                  {isPendingPlaceholder(formData.openingHours) && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-300">
+                      Pending Confirmation
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={formData.openingHours}
@@ -613,9 +639,16 @@ export default function SettingsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-plum-royal mb-1.5">
-                  Google Maps URL
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-plum-royal">
+                    Google Maps URL
+                  </label>
+                  {isPendingPlaceholder(formData.googleMapsUrl) && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-300">
+                      Pending Confirmation
+                    </span>
+                  )}
+                </div>
                 <input
                   type="url"
                   value={formData.googleMapsUrl}
@@ -627,9 +660,16 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-plum-royal mb-1.5">
-                  Instagram Handle
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-plum-royal">
+                    Instagram Handle
+                  </label>
+                  {isPendingPlaceholder(formData.instagramHandle) && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-300">
+                      Pending Confirmation
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={formData.instagramHandle}
@@ -660,9 +700,16 @@ export default function SettingsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-plum-royal mb-1.5">
-                  Restaurant UPI VPA Identifier
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-plum-royal">
+                    Restaurant UPI VPA Identifier
+                  </label>
+                  {isPendingPlaceholder(formData.upiId) && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-300">
+                      Pending Confirmation
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={formData.upiId}
@@ -766,13 +813,20 @@ export default function SettingsPage() {
             {/* GSTIN, CGST & SGST Rates */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-plum-royal mb-1.5">
-                  GST Identification Number (GSTIN)
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-plum-royal">
+                    GST Identification Number (GSTIN)
+                  </label>
+                  {isPendingPlaceholder(formData.gstin) && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-300">
+                      Pending Confirmation
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={formData.gstin}
-                  onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
                   placeholder="e.g. 22AAAAA0000A1Z5"
                   maxLength={15}
                   disabled={!formData.gstEnabled || isSubmitting}

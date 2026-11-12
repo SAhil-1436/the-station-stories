@@ -230,10 +230,17 @@ export default function StaffManagementPage() {
             )}
             <div className="flex justify-between py-1">
               <span className="text-body-muted">Account Status:</span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                Active & Ready for Login
-              </span>
+              {createdUser.active ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Active & Ready for Login
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                  Inactive
+                </span>
+              )}
             </div>
           </div>
 
@@ -241,8 +248,16 @@ export default function StaffManagementPage() {
           <div className="p-4 rounded-2xl bg-lavender-50 border border-lavender-200 text-xs text-body-muted space-y-1.5">
             <p className="font-semibold text-plum-royal">Important Staff Access Notice:</p>
             <p className="text-[11px] leading-relaxed">
-              The user can now sign in using their username (<strong className="text-plum-royal">{createdUser.username}</strong>) and the secret password chosen during provisioning.
-              For regulatory compliance, passwords are never stored in plaintext and cannot be retrieved.
+              {createdUser.active ? (
+                <>
+                  The user can now sign in using their username (<strong className="text-plum-royal">{createdUser.username}</strong>) and the secret password chosen during provisioning.
+                  For regulatory compliance, passwords are never stored in plaintext and cannot be retrieved.
+                </>
+              ) : (
+                <>
+                  This account was provisioned in an inactive state and cannot authenticate until activated by an administrator.
+                </>
+              )}
             </p>
           </div>
 
