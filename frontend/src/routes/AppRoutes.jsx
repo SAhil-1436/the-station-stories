@@ -15,6 +15,8 @@ import AboutPage from '../pages/customer/AboutPage';
 import ContactPage from '../pages/customer/ContactPage';
 import PublicInvoicePage from '../pages/customer/PublicInvoicePage';
 
+import ProtectedRoute from './ProtectedRoute';
+
 // Admin & POS Placeholders (Separate from Phase 3 Customer Application)
 import AdminLoginPage from '../pages/admin/AdminLoginPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
@@ -39,9 +41,16 @@ export default function AppRoutes() {
         <Route index element={<PosPage />} />
       </Route>
 
-      {/* Admin Management Routes (Preserved Placeholders) */}
+      {/* Admin Management Routes (Protected with ROLE_ADMIN) */}
       <Route path="/admin/login" element={<AdminLoginPage />} />
-      <Route path="/admin" element={<AdminLayout />}>
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<AdminDashboardPage />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>

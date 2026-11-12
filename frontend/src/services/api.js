@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
+  baseURL: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || '',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -25,14 +25,35 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    const status = error.response?.status;
+    const requestUrl = error.config?.url || '';
+
+    // Handle HTTP 401 Unauthorized safely on authenticated requests (skip login)
+    if (status === 401 && !requestUrl.includes('/api/v1/auth/login')) {
+      try {
+        localStorage.removeItem('tss_token');
+      } catch (storageErr) {
+        // Ignore localStorage access failures in private browsing
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tss:auth:expired'));
+      }
+    }
+
     const customError = {
       message: error.response?.data?.message || error.message || 'An unexpected error occurred',
-      status: error.response?.status,
+      status: status,
+      errorCode: error.response?.data?.errorCode,
       errors: error.response?.data?.errors,
     };
+
+    // Note: Never log tokens or sensitive credentials to console or telemetry
     return Promise.reject(customError);
   }
 );
+
+export { api };
 
 // System Health
 export const getHealth = async () => {
