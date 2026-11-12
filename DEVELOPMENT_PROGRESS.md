@@ -4,9 +4,9 @@
 - **Project Name**: THE STATION STORIES Restaurant Website & Management System
 - **Brand Identity**: **THE STATION STORIES** (strictly plural)
 - **Database Name**: **`the_station_stories`** (MySQL 9.5.0 installed, MySQL 8 dialect compatible)
-- **Current Active Phase**: Phase 3 (Public Customer Website Design and Frontend)
-- **Phase Status**: ✅ **PHASE 3 – COMPLETED & VERIFIED (READY FOR SIGN-OFF)**
-- **Next Phase**: Phase 2 (Backend Business Logic and APIs – Functional Verification)
+- **Current Active Phase**: Phase 2 (Backend Business Logic and APIs – Functional Verification)
+- **Phase Status**: ✅ **PHASE 2 – COMPLETED & VERIFIED (READY FOR SIGN-OFF)**
+- **Next Phase**: Phase 4 (Admin Dashboard)
 - **Last Updated**: 2026-11-12
 
 ---
@@ -16,15 +16,15 @@
 > [!IMPORTANT]
 > **Deliberate Phase Sequence**: The project follows the agreed sequence:  
 > **Phase 0 → Phase 1 → Phase 3 → Phase 2 → Phase 4 → Phase 5 → Phase 6**.  
-> Do not renumber the phases. Phase 3 is being developed before Phase 2 by deliberate decision.
+> Do not renumber the phases. Phase 3 was developed before Phase 2 by deliberate decision.
 
 | Phase | Description | Status | Blockers / Next Step |
 |---|---|---|---|
 | **Phase 0** | Planning and Documentation | ✅ **Completed** | Approved |
 | **Phase 1** | Project Foundation and Environment Setup | ✅ **Completed & Verified** | Preserved Java 26.0.1 (release 21 bytecode) & MySQL 9.5.0 compatibility |
 | **Phase 3** | Public Customer Website Design and Frontend | ✅ **Completed & Verified** | Approved Palette (#F7F1E8, #45213F, #C5A16B), 21 Viewports Tested, [PHASE_3_FINAL_REVIEW.md](file:///Users/sahil/Documents/Station_Stories/PHASE_3_FINAL_REVIEW.md) |
-| **Phase 2** | Backend Business Logic and APIs | ⏳ **Implementation Completed – Functional Verification Pending** | Implementation exists; live end-to-end API verification begins after Phase 3 sign-off |
-| **Phase 4** | Admin Dashboard | ⏳ **Pending** | Depends on Phase 2 verification |
+| **Phase 2** | Backend Business Logic and APIs | ✅ **Completed & Verified** | 24/24 Tests Passed, 29 Endpoints Verified, [PHASE_2_BACKEND_VERIFICATION.md](file:///Users/sahil/Documents/Station_Stories/PHASE_2_BACKEND_VERIFICATION.md) |
+| **Phase 4** | Admin Dashboard | ⏳ **Next** | Ready to begin upon client sign-off |
 | **Phase 5** | Local POS and Billing System | ⏳ **Pending** | Depends on Phase 4 |
 | **Phase 6** | Testing, Security, Windows Deployment, Backup and Production Launch | ⏳ **Pending** | Depends on Phase 5 |
 

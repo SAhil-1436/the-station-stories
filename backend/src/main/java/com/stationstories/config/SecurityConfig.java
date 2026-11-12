@@ -1,5 +1,6 @@
 package com.stationstories.config;
 
+import com.stationstories.security.JwtAccessDeniedHandler;
 import com.stationstories.security.JwtAuthenticationEntryPoint;
 import com.stationstories.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
@@ -24,13 +25,16 @@ public class SecurityConfig {
     private final CorsFilter corsFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     public SecurityConfig(CorsFilter corsFilter,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
-                          JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) {
+                          JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+                          JwtAccessDeniedHandler jwtAccessDeniedHandler) {
         this.corsFilter = corsFilter;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
+        this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
     }
 
     @Bean
@@ -43,11 +47,14 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .addFilter(corsFilter)
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler)
+                )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // 1. Health check is always public
-                        .requestMatchers(HttpMethod.GET, "/api/health", "/api/health/**").permitAll()
+                        // 1. Health check is always public (allow GET and HEAD)
+                        .requestMatchers("/api/health", "/api/health/**").permitAll()
 
                         // 2. Swagger / OpenAPI documentation
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
