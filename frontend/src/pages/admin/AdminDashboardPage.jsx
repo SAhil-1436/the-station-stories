@@ -94,9 +94,9 @@ export default function AdminDashboardPage() {
     { title: 'Categories', path: '/admin/categories', icon: Layers, phase: 'Live' },
     { title: 'Bills & Orders', path: '/admin/bills', icon: Receipt, phase: 'Live' },
     { title: 'Staff Accounts', path: '/admin/staff', icon: Users, phase: 'Live' },
-    { title: 'Reports', path: '/admin/reports', icon: BarChart3, phase: 'Phase 4.7' },
+    { title: 'Reports', path: '/admin/reports', icon: BarChart3, phase: 'Live' },
     { title: 'Settings & GST', path: '/admin/settings', icon: Settings, phase: 'Live' },
-    { title: 'Audit Logs', path: '/admin/audit-logs', icon: ShieldCheck, phase: 'Phase 4.7' },
+    { title: 'Audit Logs', path: '/admin/audit-logs', icon: ShieldCheck, phase: 'Live' },
   ];
 
   return (
@@ -172,14 +172,14 @@ export default function AdminDashboardPage() {
           loading={loading}
         />
 
-        {/* 2. Today's Order Count */}
+        {/* 2. Today's Paid Bills (Not all orders or cancellations) */}
         <DashboardKpiCard
-          title="Orders Processed"
-          value={data ? formatNumber(data.todayOrderCount) : '—'}
+          title="Paid Bills"
+          value={data ? formatNumber(data.todayPaidBills) : '—'}
           subtitle={
             data
-              ? `${formatNumber(data.todayPaidBills)} Paid · ${formatNumber(data.todayCancelledBills)} Cancelled`
-              : 'Completed customer tickets'
+              ? 'Settled customer invoices today'
+              : 'Paid customer tickets'
           }
           icon={ShoppingBag}
           loading={loading}
@@ -194,7 +194,7 @@ export default function AdminDashboardPage() {
           loading={loading}
         />
 
-        {/* 4. Settlement Completion Rate */}
+        {/* 4. Settled Invoices (No misleading completion percentage) */}
         <DashboardKpiCard
           title="Settled Invoices"
           value={
@@ -202,14 +202,18 @@ export default function AdminDashboardPage() {
               ? `${formatNumber(data.todayPaidBills)} Bills`
               : '—'
           }
-          subtitle={
-            data && data.todayOrderCount > 0
-              ? `${((data.todayPaidBills / data.todayOrderCount) * 100).toFixed(0)}% completion rate`
-              : 'Zero cancellations recorded today'
-          }
+          subtitle="Verified paid bills in today's register"
           icon={CheckCircle2}
           loading={loading}
         />
+      </div>
+
+      {/* Backend Metric Limitations Transparency Note */}
+      <div className="px-4 py-2.5 rounded-xl bg-ivory-100 border border-lavender-200 text-body-muted text-[11px] flex items-center gap-2">
+        <Clock className="w-3.5 h-3.5 text-gold-600 shrink-0" />
+        <span>
+          <strong className="text-plum-royal font-medium">Reporting Context:</strong> Metrics reflect paid bills returned by the current backend report. Cancellation and historical reconciliation metrics are not currently supported accurately.
+        </span>
       </div>
 
       {/* Visual Analytics & Bestsellers Grid */}
