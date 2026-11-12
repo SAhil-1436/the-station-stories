@@ -163,14 +163,43 @@ The Vite development server will start at:
 
 ---
 
-## 7. Dual-Language Support (i18n)
+## 7. Project Roadmap & Development Sequence
+
+> [!IMPORTANT]
+> **Deliberate Phase Sequence**: The project follows the agreed sequence:  
+> **Phase 0 → Phase 1 → Phase 3 → Phase 2 → Phase 4 → Phase 5 → Phase 6**.  
+> Do not renumber the phases. Phase 3 (Public Customer Website Design and Frontend) is developed before Phase 2 by deliberate owner decision.
+
+- **Phase 0 – Planning and Documentation** (Completed)
+- **Phase 1 – Project Foundation and Environment Setup** (Completed)
+- **Phase 3 – Public Customer Website Design and Frontend** (Currently in progress / final review)
+- **Phase 2 – Backend Business Logic and APIs** (Next)
+- **Phase 4 – Admin Dashboard** (Pending)
+- **Phase 5 – Local POS and Billing System** (Pending)
+- **Phase 6 – Testing, Security, Windows Deployment, Backup and Production Launch** (Pending)
+
+---
+
+## 8. Separation of Applications
+
+The platform maintains strict separation across three functional areas:
+1. **Public Customer Website**: Responsive customer experience (`/`, `/menu`, `/qr-menu`, `/gallery`, `/about`, `/contact`, `/bill/view/:uuid`) built on the approved Warm Ivory (`#F7F1E8`), Royal Plum (`#45213F`), and Champagne Gold (`#C5A16B`) palette. Table QR menu (`/qr-menu`) is touch-optimized for browsing only (zero cart, checkout, or online payments).
+2. **Private Admin Dashboard**: Dedicated management operations portal (KPI analytics, menu management, tax controls). Accessible only via discreet Staff Portal login (`/admin/login`) in the footer.
+3. **Private Local POS & Billing Application**: Dedicated counter terminal for cashier ordering, thermal receipt printing (80mm/58mm), and offline billing.
+
+*Admin and POS routes remain placeholders during Phase 3 and are never exposed in public customer navigation.*
+
+---
+
+## 9. Dual-Language Support (i18n)
 
 Click the language button in the navigation header to toggle dynamically between **English** and **हिंदी (Hindi)**.
 
 ---
 
-## 8. Development Rules & Security
+## 10. Development Rules & Security
 
 - **Original Master Photos**: Master images inside `referance-assets/` are permanent records and must never be altered or renamed.
 - **Tax Policy**: GST calculation is **strictly disabled by default (0.00% tax)** until confirmed by the owner.
 - **Secrets Protection**: Credentials and JWT secrets are injected via environment variables and excluded from Git commits via `.gitignore`.
+

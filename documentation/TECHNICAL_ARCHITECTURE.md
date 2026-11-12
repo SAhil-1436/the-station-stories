@@ -50,7 +50,7 @@
 ### Frontend
 - **Framework**: React 18 + Vite 5 (Fast HMR, lightweight bundle output, native ES modules).
 - **Language**: JavaScript (ES2023+).
-- **Styling**: Tailwind CSS 3.4 (Utility-first, responsive layouts, high-contrast dark/light accents matching restaurant ambiance).
+- **Styling**: Tailwind CSS 3.4 (Utility-first, responsive layouts, approved Warm Ivory `#F7F1E8` dominant background, Royal Plum `#45213F` brand headings/buttons, Champagne Gold `#C5A16B` highlights, Soft Lavender `#E9DDEB` cards, Dark Plum `#32172F` accents).
 - **Routing**: React Router DOM 6.x (Nested layouts, protected route guards for `/admin` and `/pos`).
 - **HTTP Client**: Axios with centralized request/response interceptors (Bearer token injection, 401 token refresh).
 - **Icons**: Lucide React (Tree-shakeable SVG icon set).
@@ -277,7 +277,7 @@ The initial release focuses on core operations while cleanly accommodating futur
 
 | Postponed Feature | Extensibility Hook |
 |---|---|
-| **Private Cabin Booking** | The restaurant has three private cabins. In Phase 0–6, cabins are handled via `cabin_table_ref` on POS bills (`Cabin 1`, `Cabin 2`, `Cabin 3`). Online booking entity `CabinReservation` can be added in Phase 8 without refactoring existing billing. |
+| **Private Cabin Booking** | The restaurant has three private cabins. In the initial phases, cabins are handled via `cabin_table_ref` on POS bills (`Cabin 1`, `Cabin 2`, `Cabin 3`). Online booking entity `CabinReservation` can be added in a future release without refactoring existing billing. |
 | **Online Food Ordering** | `OrderType` enum supports `ONLINE_ORDER` alongside `DINE_IN` and `TAKEAWAY`. |
 | **Payment Gateway Integration** | `PaymentProcessingStrategy` interface allows plug-and-play addition of Razorpay, Cashfree, or Paytm. |
 | **Kitchen Order Ticket (KOT)** | `bill_items.item_status` enum (`ORDERED`, `PREPARING`, `SERVED`) enables future kitchen display terminal route `/kitchen`. |
@@ -287,10 +287,11 @@ The initial release focuses on core operations while cleanly accommodating futur
 
 ## 10. Cross-Platform Strategy & Future Windows Offline POS Architecture
 
-### 1. Separation of Public Website & Private POS
-The public customer-facing website and the private POS management system are strictly separated:
+### 1. Separation of Public Website & Private Applications
+The public customer-facing website and the private management systems are strictly separated:
 - **Public Website (Phase 3)**: Independent customer-facing web application optimized for desktop, tablet, and mobile browsers (Digital Menu, QR Menu `/qr-menu`, Ambiance Gallery, Restaurant Story, Public Invoice Viewer `/bill/view/:uuid`).
-- **Private POS & Admin (Future / Separate Phases)**: Dedicated operations application with role guards, cashier fast-billing workflows, and manager controls.
+- **Private Admin Dashboard (Phase 4)**: Dedicated operations portal for store management, menu pricing, analytics, and tax policy.
+- **Private Local POS (Phase 5)**: Dedicated counter terminal with role guards, cashier fast-billing workflows, and offline capability.
 
 ### 2. Future POS Windows Local Deployment
 In future phases, the POS billing application will run on a dedicated counter computer running Windows:

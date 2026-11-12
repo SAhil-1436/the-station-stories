@@ -55,44 +55,54 @@
 
 ## 3. UI/UX Design System Direction
 
-- **Brand Mood**: Heritage railway elegance fused with vibrant contemporary neon ambiance.
-- **Color Palette**:
-  - **Midnight Charcoal** (`#12161A`, `#1A2026`) – Deep luxury background.
-  - **Warm Ivory** (`#FBF9F5`, `#F5F0E6`) – Clean surface and text background.
-  - **Champagne Gold** (`#D4AF37`, `#C5A059`) – Accent highlights and badges.
-  - **Atmosphere Purple / Indigo** (`#6366F1`, `#7C3AED`, `#9333EA`) – Subtle atmospheric glow echoing authentic restaurant lighting.
+- **Brand Mood**: Heritage railway elegance fused with welcoming warmth, modern comfort, and authentic ambiance.
+- **Approved Color Palette (Warm Luxury Aesthetic)**:
+  - **Warm Ivory (`#F7F1E8`)**: Dominant website background across all pages — bright, luxurious, and welcoming (strictly avoiding dark charcoal backgrounds).
+  - **Royal Plum (`#45213F`)**: Primary brand headings, brand accents, and primary CTA buttons with ivory text.
+  - **Champagne Gold (`#C5A16B`)**: Accent highlights, borders, badges, star ratings, and subtle metallic dividers.
+  - **Soft Lavender (`#E9DDEB`)**: Secondary card backgrounds and category filters.
+  - **Muted Rose (`#B88E9D`)**: Decorative tag accents and delicate border details.
+  - **Dark Plum (`#32172F`)**: Selective hero backdrop contrast, luxury footer background, and deep ambiance accents.
+  - **Body Text (`#332A35`)**: High contrast, readable typography on Warm Ivory surfaces.
+  - **Pure White (`#FFFFFF`)**: Clean card surfaces and content wrappers.
 - **Typography**:
-  - Headings: Serif elegance (Playfair Display / Cormorant Garamond).
-  - Body & Numbers: High-legibility geometric sans-serif (Inter / Plus Jakarta Sans).
+  - Headings: Serif elegance (`Cormorant Garamond` / `Playfair Display`).
+  - Body & Numbers: High-legibility geometric sans-serif (`Manrope` / `DM Sans`).
+  - Bilingual Devanagari: `Noto Sans Devanagari`.
 - **Asset Hierarchy**:
   - Authentic photos prioritized across Homepage, Gallery, and About Us.
-  - Temporary licensed food images clearly distinguished in development.
+  - Temporary licensed food images clearly distinguished in development with `[Representative Image]` badges.
 
 ---
 
-## 4. Unconfirmed Business Information & Placeholder Strategy
+## 4. Separation of Functional Applications
 
-The following information has not yet been confirmed by the restaurant owner:
-- Complete restaurant street address
-- Primary and secondary contact phone numbers
-- Official WhatsApp business number
-- Daily opening and closing hours
-- Actual UPI ID (VPA) for payment collection
-- GST registration status and GSTIN
-- Official food menu items, recipe descriptions, and prices
-- Official Instagram profile handle
-- Google Maps location URL and Google Business Profile
-
-**Strict Policy**: These parameters remain fully configurable through the Admin Settings and database. Clearly marked placeholders (e.g. `[Pending Owner Confirmation]`) will be used during development. **No fake business information, invented menu prices, or fictitious customer reviews will ever be published.**
+The system comprises three strictly separated functional areas:
+1. **Public Customer Website**:
+   - Customer-facing web application optimized for desktop, tablet, and mobile browsers (`/`, `/menu`, `/qr-menu`, `/gallery`, `/about`, `/contact`, `/bill/view/:uuid`).
+   - QR Menu (`/qr-menu`) is strictly a browsing and discovery tool (zero checkout, zero online payments, zero cart).
+   - Customer navigation contains zero internal POS or Admin links.
+2. **Private Admin Dashboard**:
+   - Dedicated administrative operations portal for store management, menu catalog adjustments, financial reports, and tax settings.
+   - Accessible only via discreet Staff Portal login (`/admin/login`) located in the footer.
+   - Routes remain protected placeholders until Phase 4 implementation.
+3. **Private Local POS & Billing Application**:
+   - Dedicated counter billing application for cashiers, order settlement, and thermal receipt printing.
+   - Routes remain protected placeholders until Phase 5 implementation.
 
 ---
 
 ## 5. Phased Development Roadmap
 
-### Phase 0: Workspace Analysis, Architecture, Schema & Planning (Current Phase)
-- **Status**: ✅ **COMPLETED – PENDING OWNER APPROVAL TO BEGIN PHASE 1**
+> [!IMPORTANT]
+> **Deliberate Phase Sequence**: The project follows the agreed sequence:  
+> **Phase 0 → Phase 1 → Phase 3 → Phase 2 → Phase 4 → Phase 5 → Phase 6**.  
+> Do not renumber the phases. Phase 3 (Customer Website Design and Frontend) is developed before Phase 2 by deliberate design decision.
+
+### Phase 0: Planning and Documentation
+- **Status**: ✅ **COMPLETED**
 - **Deliverables**:
-  - Complete workspace inspection and audit of 13 authentic photos in `referance-assets/`.
+  - Workspace inspection and audit of 13 authentic photos in `referance-assets/`.
   - Architecture specification (`TECHNICAL_ARCHITECTURE.md`).
   - Database schema & ER diagram (`DATABASE_DESIGN.md`).
   - REST API contracts (`API_DOCUMENTATION.md`).
@@ -103,92 +113,72 @@ The following information has not yet been confirmed by the restaurant owner:
 
 ---
 
-### Phase 1: Project Scaffolding, Git, MySQL Connection & Environment Setup
-- **Goal**: Initialize Git repository, configure Spring Boot backend (Java 21, Maven), configure React frontend (Vite, Tailwind CSS), configure MySQL connection (`the_station_stories`) and Flyway migrations.
-- **Tasks**:
-  1. Initialize Git repository with structured `.gitignore`.
-  2. Bootstrap backend directory structure (`backend/`) with Maven `pom.xml` and Java 21 dependencies.
-  3. Bootstrap frontend directory structure (`frontend/`) with React, Vite, and Tailwind CSS.
-  4. Create MySQL database `the_station_stories` and test connectivity.
-  5. Implement Flyway migration scripts (`V1__init_schema.sql` and `V2__seed_initial_data.sql`).
-  6. Verify backend compiles and boots cleanly.
-  7. Verify frontend compiles and serves cleanly.
-  8. Document setup and seek approval.
+### Phase 1: Project Foundation and Environment Setup
+- **Status**: ✅ **COMPLETED & VERIFIED**
+- **Deliverables**:
+  - Git repository with security-hardened `.gitignore`.
+  - Spring Boot backend (Java 21 bytecode release targeting on verified Java 26.0.1 runtime).
+  - MySQL database (`the_station_stories`, MySQL 9.5 compatible) with Flyway migrations baseline.
+  - React 18 + Vite frontend with Tailwind CSS and dual-language (Hindi/English) `i18next`.
+  - Health check endpoint `/api/health` reporting live status.
 
 ---
 
-### Phase 2: Database & Core Backend REST APIs
-- **Goal**: Implement backend modular monolith modules with security and unit/integration tests.
-- **Tasks**:
-  1. Implement `common` modules: Global Exception Handler, CORS filter, Security configuration, JWT filter, Rate limiter.
-  2. Implement `auth` module: Login, Token refresh, current user profile endpoint.
-  3. Implement `menu` & `category` module: Public list endpoints, Admin CRUD endpoints.
-  4. Implement `customer` module: Quick lookup by phone, deduplicated registration.
-  5. Implement `billing` module: Order creation, thread-safe sequence generator, authoritative financial calculations, dynamic tax calculation engine (strictly 0% unless enabled), invoice UUID generation.
-  6. Implement `report` module: Dashboard statistics, daily summary, monthly sales breakdown.
-  7. Implement `setting` module: Dynamic tax policy, restaurant metadata.
-  8. Implement `gallery` module: Categorized photo query.
-  9. Run API test suite and verify all endpoints.
+### Phase 3: Public Customer Website Design and Frontend
+- **Status**: 🔄 **CURRENTLY IN PROGRESS / FINAL REVIEW**
+- **Scope**:
+  1. Full Customer Website built on approved Warm Ivory (`#F7F1E8`) and Royal Plum (`#45213F`) palette.
+  2. Asymmetrical editorial Homepage with authentic central dining hall backdrop, 4 pillars, brand story, and photo gallery showcase.
+  3. Interactive Digital Menu (`/menu`) with category tabs, search, veg toggle, and dish cards with `[Representative Image]` badges.
+  4. Dedicated Mobile Table/Cabin QR Menu (`/qr-menu`) with cabin selector and captain call alert (browsing only, no checkout).
+  5. High-resolution Photo Gallery (`/gallery`) showcasing all 13 authentic photos with interactive Lightbox preview.
+  6. Narrative Brand Story (`/about`) and Contact & Inquiry Reservation page (`/contact`) with direct WhatsApp chat.
+  7. Public digital invoice view (`/bill/view/:uuid`) with thermal receipt layout.
+  8. Optimized production build with zero chunk warnings and verified live HTTP 200 responses.
 
 ---
 
-### Phase 3: Customer-Facing Web Platform & Digital Menu
-- **Goal**: Build the responsive customer-facing website and QR menu.
-- **Tasks**:
-  1. Build layout system (`Navbar`, `Footer`, `LanguageToggle`, floating WhatsApp contact button).
-  2. Build Homepage featuring authentic dining hall photos, locomotive theme, and ambiance highlights.
-  3. Build Interactive Digital Food Menu with category filters, Veg/Non-Veg switch, search bar, and representative image badges.
-  4. Build Dedicated Mobile QR Menu (`/qr-menu`).
-  5. Build Restaurant Gallery (`/gallery`) with category filter pills.
-  6. Implement English / Hindi dual-language switcher with locale dictionary.
+### Phase 2: Backend Business Logic and APIs
+- **Status**: ⏳ **NEXT UP**
+- **Scope**:
+  1. Finalize modular monolith backend services: Auth & RBAC (`ROLE_ADMIN`, `ROLE_CASHIER`), Menu & Categories, Customer CRM, Billing Engine, Reports, Settings.
+  2. Implement thread-safe daily bill sequence generator (`TSS-YYYYMMDD-XXXX`) with pessimistic row locking.
+  3. Authoritative financial calculations (subtotal, discounts, dynamic tax engine strictly 0% by default).
+  4. Public digital invoice endpoint (`/api/v1/public/bill/view/{uuid}`) and WhatsApp sharing payload generator.
+  5. Full unit and integration test suite execution.
 
 ---
 
-### Phase 4: POS Billing System & Receipt Printing
-- **Goal**: Build the cashier POS terminal (`/pos`) with fast order creation and thermal receipt generation.
-- **Tasks**:
-  1. Build POS layout with high-contrast cashier color scheme.
-  2. Build interactive product catalog grid with instant search and category quick-buttons.
-  3. Build active order cart with quantity controls, custom item notes, and discount calculator.
-  4. Build optional customer lookup input with automatic phone-based match; support anonymous walk-in checkout.
-  5. Build payment settlement modal (Cash, UPI QR display, Split payment).
-  6. Build thermal receipt printing template with `@media print` CSS for 80mm and 58mm POS printers.
-  7. Implement client-side PDF invoice generator and public bill view (`/bill/view/:uuid`).
-  8. Test bill generation and print output.
+### Phase 4: Admin Dashboard
+- **Status**: ⏳ **PENDING (AFTER PHASE 2)**
+- **Scope**:
+  1. Implement Admin Layout with sidebar navigation and session status.
+  2. Dashboard KPI metric cards, daily sales charts, and top-selling dishes.
+  3. Menu and Category Management CRUD (dishes, prices, in-stock/86 toggle, image replacements).
+  4. Customer CRM table with lifetime visit count and total spent metrics.
+  5. Historical Bills table with date filters, auditable cancellation/refund workflow, and reprint actions.
+  6. Financial Reports tab and dynamic GST tax controls.
 
 ---
 
-### Phase 5: Admin Dashboard, Analytics & Management
-- **Goal**: Implement the administrative portal (`/admin`) for store management.
-- **Tasks**:
-  1. Build Admin Layout with sidebar navigation and session status.
-  2. Build Dashboard overview with KPI metric cards, daily sales charts, and top-selling dishes.
-  3. Build Menu Management table: add/edit dishes, price adjustments, stock availability toggle.
-  4. Build Category Management view with display ordering.
-  5. Build Customer CRM table with lifetime purchase history.
-  6. Build Historical Bills table with date filters, status indicators, auditable cancellation workflow, and reprint action.
-  7. Build Financial Reports tab with downloadable summary data.
-  8. Build Settings view: store profile, UPI ID, and flexible GST tax controls.
+### Phase 5: Local POS and Billing System
+- **Status**: ⏳ **PENDING (AFTER PHASE 4)**
+- **Scope**:
+  1. High-speed cashier POS counter terminal (`/pos`) optimized for keyboard and touch speed.
+  2. Fast Order Builder with category filters, quick search, quantity adjustments, and custom notes.
+  3. Returning customer phone lookup with automatic visit count tracking; walk-in anonymous checkout.
+  4. Payment settlement modal (Cash, dynamic UPI QR display, Split payment).
+  5. Thermal receipt printing engine supporting 80mm and 58mm roll standards via browser print and direct USB printing interface.
+  6. Local offline billing capability with local MySQL fallback.
 
 ---
 
-### Phase 6: Digital Bill Delivery & WhatsApp Integration
-- **Goal**: Implement zero-cost WhatsApp intent sharing and cloud API adapter.
-- **Tasks**:
-  1. Build WhatsApp message formatter generating formatted receipts (emojis, bold totals, line items).
-  2. Integrate one-click WhatsApp intent URL launching WhatsApp Web/Desktop.
-  3. Implement delivery state tracker (`NOT_SENT`, `LINK_PREPARED`, `OPENED`, `MANUALLY_SENT`, `DELIVERY_CONFIRMED`).
-  4. Create extensible backend adapter for Meta Cloud API integration.
-  5. Test end-to-end bill sharing workflow.
+### Phase 6: Testing, Security, Windows Deployment, Backup and Production Launch
+- **Status**: ⏳ **PENDING (AFTER PHASE 5)**
+- **Scope**:
+  1. End-to-end testing, cross-browser verification, and mobile responsiveness hardening.
+  2. Security audit: Rate limiting, CORS whitelist, JWT expiration, input sanitization, SQL injection prevention.
+  3. Windows local deployment configuration for restaurant counter hardware with offline capability.
+  4. Automated encrypted local backup (USB/external drive) and encrypted cloud backup synchronization.
+  5. Production handover, staff operating documentation, and live launch.
 
----
-
-### Phase 7: Verification, Hardening, Polish & Handover
-- **Goal**: Comprehensive system testing, error handling polish, and production readiness.
-- **Tasks**:
-  1. Execute cross-browser and mobile responsiveness testing.
-  2. Verify all 13 authentic restaurant photographs render crisply.
-  3. Validate tax engine behavior under both disabled and enabled states.
-  4. Conduct security review (CORS, token expiration, SQL injection, input sanitization).
-  5. Complete `DEVELOPMENT_PROGRESS.md` and finalize `DEPLOYMENT_GUIDE.md`.
-  6. Final demonstration walkthrough for owner approval.

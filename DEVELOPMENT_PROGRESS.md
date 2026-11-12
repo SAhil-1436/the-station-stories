@@ -4,24 +4,29 @@
 - **Project Name**: THE STATION STORIES Restaurant Website & Management System
 - **Brand Identity**: **THE STATION STORIES** (strictly plural)
 - **Database Name**: **`the_station_stories`** (MySQL 8)
-- **Current Active Phase**: Phase 3 (Customer-Facing Web Platform, Digital Menu & Gallery with Authentic Photos)
-- **Phase Status**: ✅ **PHASE 3 COMPLETED & VERIFIED – READY FOR OWNER REVIEW**
+- **Current Active Phase**: Phase 3 (Public Customer Website Design and Frontend)
+- **Phase Status**: 🔄 **PHASE 3 IN PROGRESS / FINAL REVIEW**
+- **Next Phase**: Phase 2 (Backend Business Logic and APIs)
 - **Last Updated**: 2026-11-12
 
 ---
 
-## Phase Status Matrix
+## Phase Status Matrix (Final Agreed Workflow)
+
+> [!IMPORTANT]
+> **Deliberate Phase Sequence**: The project follows the agreed sequence:  
+> **Phase 0 → Phase 1 → Phase 3 → Phase 2 → Phase 4 → Phase 5 → Phase 6**.  
+> Do not renumber the phases. Phase 3 is being developed before Phase 2 by deliberate decision.
 
 | Phase | Description | Status | Blockers / Next Step |
 |---|---|---|---|
-| **Phase 0** | Workspace Analysis, Asset Audit, Architecture, Security & Planning | ✅ **Completed & Audited** | Phase complete |
-| **Phase 1** | Project Scaffolding, Git, MySQL Connection & Environment Setup | ✅ **Completed & Verified** | Preserved Java 26.0.1 & MySQL 9.5.0 compatibility |
-| **Phase 2** | Database Migrations & Core Backend REST APIs (Modular Monolith) | ✅ **Completed & Verified** | 24/24 Tests Passed, Live APIs Verified |
-| **Phase 3** | Customer-Facing Website, Digital Menu & Gallery with Authentic Photos | ✅ **Completed & Verified** | Approved Palette (#F7F1E8, #45213F, #C5A16B), Hindi/EN, Vite Build Passed |
-| **Phase 4** | POS Billing System, Thermal Receipt Printing (80mm/58mm) & PDF Bills | ⏳ Postponed / Next | Pending Phase 3 Owner Review |
-| **Phase 5** | Admin Dashboard, Analytics, Menu Management & Dynamic Tax Controls | ⏳ Pending | Depends on Phase 4 |
-| **Phase 6** | Digital Bill Delivery & WhatsApp Sharing Integration | ⏳ Pending | Depends on Phase 5 |
-| **Phase 7** | End-to-End Verification, Security Hardening, Polish & Deployment | ⏳ Pending | Depends on Phase 6 |
+| **Phase 0** | Planning and Documentation | ✅ **Completed** | Approved |
+| **Phase 1** | Project Foundation and Environment Setup | ✅ **Completed & Verified** | Preserved Java 26.0.1 & MySQL 9.5.0 compatibility |
+| **Phase 3** | Public Customer Website Design and Frontend | 🔄 **In Progress / Final Review** | Approved Palette (#F7F1E8, #45213F, #C5A16B), Vite Build Passed |
+| **Phase 2** | Backend Business Logic and APIs | ⏳ **Next** | Begins after Phase 3 review and sign-off |
+| **Phase 4** | Admin Dashboard | ⏳ **Pending** | Depends on Phase 2 |
+| **Phase 5** | Local POS and Billing System | ⏳ **Pending** | Depends on Phase 4 |
+| **Phase 6** | Testing, Security, Windows Deployment, Backup and Production Launch | ⏳ **Pending** | Depends on Phase 5 |
 
 ---
 
@@ -269,8 +274,8 @@
 ### 6. Known Issues, Limitations & Pre-Launch Notices
 1. **Representative Food Photography**: Dishes in the digital menu and QR menu currently display representative imagery with prominent `[Representative Image]` badges. Genuine high-resolution dish photography from the restaurant kitchen will replace them upon receipt from the owner.
 2. **Pending Business Details**: Contact telephone number, GSTIN, and physical street address are populated with structured placeholders (`[Pending Owner Confirmation]`) in `restaurantData.js` until confirmed by management.
-3. **QR Menu Ordering Scope**: The QR Menu (`/qr-menu`) provides touch-first dish discovery and server/captain calling functionality. Online ordering, cart checkout, and digital payment gateways are deliberately withheld in accordance with the offline-first, cashier-assisted POS architecture (Phase 4).
-4. **Thermal Printing Mechanism**: Public bill invoices (`/bill/view/:uuid`) leverage browser-based `@media print` layout formatting. Raw direct USB ESC/POS binary printing is architected for Phase 4 POS deployment.
+3. **QR Menu Ordering Scope**: The QR Menu (`/qr-menu`) provides touch-first dish discovery and server/captain calling functionality. Online ordering, cart checkout, and digital payment gateways are deliberately withheld in accordance with the offline-first, cashier-assisted POS architecture (Phase 5).
+4. **Thermal Printing Mechanism**: Public bill invoices (`/bill/view/:uuid`) leverage browser-based `@media print` layout formatting. Raw direct USB ESC/POS binary printing is architected for Phase 5 POS deployment.
 
 ### 7. External Code & Design Review Visuals
 Desktop and mobile high-resolution captures have been generated and archived in `documentation/screenshots/`:
@@ -282,9 +287,11 @@ Desktop and mobile high-resolution captures have been generated and archived in 
 ---
 
 ## Current Status & Next Phase
-- **Phase 3 Status**: ✅ **100% Complete & Verified**.
+- **Phase 3 Status**: 🔄 **In Progress / Final Review**.
+- **Deliberate Phase Sequence**: **Phase 0 → Phase 1 → Phase 3 → Phase 2 → Phase 4 → Phase 5 → Phase 6**.
 - **External Review Readiness**: ✅ **Security audit clean, gitignore verified, zero sensitive credentials committed, visual screenshots generated**.
-- **Rule**: STRICTLY STOP after Phase 3. Postponed features (Phase 4 POS, Phase 5 Admin Dashboard, Billing backend modifications) are NOT started.
-- Awaiting explicit owner review and sign-off before proceeding to any future phases.
+- **Next Phase**: **Phase 2 – Backend Business Logic and APIs** (to begin only upon owner sign-off).
+- **Rule**: STRICTLY STOP. Postponed features (Phase 2 APIs, Phase 4 Admin Dashboard, Phase 5 Local POS, Phase 6 Launch) are NOT started.
+- Awaiting explicit owner review and sign-off before proceeding to Phase 2.
 
 
