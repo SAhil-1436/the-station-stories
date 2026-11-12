@@ -7,30 +7,36 @@ export default {
   theme: {
     extend: {
       colors: {
-        charcoal: {
-          950: '#0B0E11',
-          900: '#12161A',
-          800: '#1A2026',
-          700: '#2A323D',
-        },
         ivory: {
-          50: '#FBF9F5',
-          100: '#F5F0E6',
-          200: '#EBE4D5',
+          50: '#FAF6F0',
+          100: '#F7F1E8', // Approved Primary Warm Ivory
+          200: '#EFE7DC',
+          300: '#E5D9C8',
+        },
+        plum: {
+          950: '#220D1E',
+          900: '#33142D',
+          800: '#45213F', // Approved Primary Royal Plum
+          700: '#5D2F55',
+          600: '#773E6E',
+          500: '#935089',
         },
         gold: {
-          500: '#D4AF37',
-          600: '#C5A059',
-          700: '#A6843D',
+          300: '#E6D3B3',
+          400: '#D8B986',
+          500: '#C5A16B', // Approved Primary Champagne Gold
+          600: '#B08B53',
+          700: '#8E6D3B',
         },
-        neon: {
-          purple: '#9333EA',
-          indigo: '#6366F1',
-          violet: '#7C3AED',
+        charcoal: {
+          950: '#121013',
+          900: '#1A181B',
+          800: '#242025',
+          700: '#363038',
         },
       },
       fontFamily: {
-        serif: ['Playfair Display', 'Cormorant Garamond', 'serif'],
+        serif: ['Playfair Display', 'Cormorant Garamond', 'Georgia', 'serif'],
         sans: ['Inter', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'],
       },
     },
