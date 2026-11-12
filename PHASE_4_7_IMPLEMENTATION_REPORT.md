@@ -174,25 +174,57 @@ dist/assets/index-Cd0xPCvE.css          63.16 kB │ gzip:  10.63 kB
 dist/assets/vendor-icons-BAlVSBO_.js    40.14 kB │ gzip:   8.16 kB
 dist/assets/vendor-motion-CnW3Bd-q.js  143.66 kB │ gzip:  48.66 kB
 dist/assets/vendor-react-BFqiAsQT.js   163.87 kB │ gzip:  53.42 kB
-dist/assets/index-DGrQzOC9.js          463.89 kB │ gzip: 111.08 kB
-✓ built in 1.34s
+dist/assets/index-CuExmFDz.js          463.75 kB │ gzip: 111.04 kB
+✓ built in 1.67s
 ```
 **Result**: Build succeeded with **0 errors and 0 warnings**.
 
 ---
 
-## 7. Tests Performed & Not Performed
+## 7. Final Accuracy & Honesty Patch (Phase 4.7 Patch)
 
-### 7.1 Tests Performed
+A targeted corrective patch was applied to Phase 4.7 to ensure strict truthfulness and eliminate unsubstantiated claims:
+
+1. **Suppression of Fabricated Fallback IP Address (`AuditLogDetailModal.jsx`)**:
+   - Replaced `{log.ipAddress || '127.0.0.1'}` with `{log.ipAddress || '—'}`.
+   - Removed the hardcoded `"Internal Network"` label; replaced with contextual badge `{log.ipAddress ? 'Logged IP' : 'Unavailable'}`.
+   - A missing IP address is now displayed honestly as unavailable without inventing addresses.
+
+2. **Correction of Immutability Claims (`AuditLogDetailModal.jsx` & `AuditLogsPage.jsx`)**:
+   - Removed claims of "cryptographically immutable" and "Verified" status.
+   - Replaced with accurate, honest wording:
+     > *"Audit records are presented as a read-only history in this admin interface. Edit and delete controls are intentionally suppressed. Backend-level tamper-proof or cryptographic verification is not currently implemented."*
+   - Updated `AuditLogsPage.jsx` header to describe records as "Chronological read-only record" rather than "immutable".
+
+3. **Elimination of Redundant Dashboard KPI (`AdminDashboardPage.jsx`)**:
+   - Removed the duplicate "Settled Invoices" card which repeated `todayPaidBills`.
+   - Adopted a clean, non-redundant 3-card layout:
+     1. Today's Total Sales (`todayTotalSales`)
+     2. Paid Bills (`todayPaidBills`)
+     3. Average Order Value (`averageOrderValue`)
+   - Removed the unused `CheckCircle2` icon import.
+   - Preserved the reporting limitations note banner.
+
+4. **Refined Report Wording (`ReportsPage.jsx`)**:
+   - Clarified "Other Payments" as an *"Aggregated total of non-Cash and non-UPI payment methods"*, ensuring no implication of a specific singular payment mechanism.
+   - Replaced "settled" terminology with "collected" and "paid" across KPI and table descriptions to avoid claiming official register reconciliation.
+   - Labeled the derived unit calculation column explicitly as **"Average Revenue per Item"** (`totalRevenue / quantitySold`) to avoid confusion with menu list selling prices.
+   - Preserved all actual report figures and disclaimers.
+
+---
+
+## 8. Tests Performed & Not Performed
+
+### 8.1 Tests Performed
 1. **Frontend Production Build**: Executed `npm run build` in `frontend/`, verifying clean compilation, bundling, and 0 warnings/errors.
-2. **Authenticated Reports API Contract Verification**: Sent authenticated `GET /api/v1/admin/reports/dashboard` request to the running backend (`127.0.0.1:8080`) and verified HTTP 200 with all 9 required fields (`todayTotalSales`, `todayOrderCount`, `todayPaidBills`, `todayCancelledBills`, `todayCashSales`, `todayUpiSales`, `todayOtherSales`, `averageOrderValue`, `topSellingItems`).
-3. **Authenticated Audit Logs API Contract Verification**: Sent authenticated `GET /api/v1/admin/audit-logs?page=0&size=10` request to the running backend (`127.0.0.1:8080`) and verified HTTP 200 with Page metadata (`totalElements: 51`, `totalPages: 6`, `size: 10`) and all 9 item fields (`id`, `entityName`, `entityId`, `action`, `performedBy`, `oldValue`, `newValue`, `ipAddress`, `createdAt`).
-4. **Timezone Formatting Verification**: Verified that UTC timestamps (e.g. `2026-11-12T18:16:44Z`) format to `12 Nov 2026, 11:46:44 pm` in `Asia/Kolkata`.
-5. **Division-by-Zero Safety**: Verified percentage calculations when `todayTotalSales === 0` safely output `0%` without `NaN` or `Infinity`.
-6. **XSS Protection**: Verified that audit log old/new values render as text in `<pre>` blocks without HTML execution.
-7. **Print Media CSS Verification**: Verified that print media rules suppress all navigation, sidebars, and interactive buttons.
+2. **Null IP Verification**: Verified that null IP addresses render as `—` (Unavailable) in both table rows and the detail modal.
+3. **No Cryptographic Claims**: Grepped and verified that zero cryptographic immutability or verification claims remain in frontend code.
+4. **Dashboard KPI Uniqueness**: Verified that `AdminDashboardPage.jsx` displays a 3-card non-duplicated layout without repeating `todayPaidBills`.
+5. **Report Terminology Audit**: Verified that "Other Payments" and "Average Revenue per Item" headers are accurately labeled.
+6. **Authenticated Reports API Contract Verification**: Authenticated `GET /api/v1/admin/reports/dashboard` returned HTTP 200 with all 9 required fields.
+7. **Authenticated Audit Logs API Contract Verification**: Authenticated `GET /api/v1/admin/audit-logs?page=0&size=10` returned HTTP 200 with Page metadata (`totalElements: 51`).
 
-### 7.2 Tests NOT Performed & Justification
+### 8.2 Tests NOT Performed & Justification
 - **State-Mutating Transactions**: **NOT PERFORMED**.
   - **Reason**: Per strict instructions (*"Do not create, update, cancel or delete any real business data for verification"*), no bills were cancelled, no menu prices modified, and no fake audit events generated against the persistent database.
 - **Physical Thermal Receipt Printing**: **NOT PERFORMED**.
@@ -200,7 +232,7 @@ dist/assets/index-DGrQzOC9.js          463.89 kB │ gzip: 111.08 kB
 
 ---
 
-## 8. Known Backend Limitations
+## 9. Known Backend Limitations
 
 1. **Audit Log Filter Absence**: The backend endpoint `GET /api/v1/admin/audit-logs` accepts only `page` and `size`. Query filtering by entity name, action type, date range, or performer is not supported on the server.
 2. **Hardcoded Zero Cancellations**: `ReportService.java` hardcodes `todayCancelledBills` to `0` and does not yet query cancelled bills from `BillRepository`.
@@ -209,9 +241,9 @@ dist/assets/index-DGrQzOC9.js          463.89 kB │ gzip: 111.08 kB
 
 ---
 
-## 9. Next Steps
+## 10. Next Steps
 
-Phase 4.7 is complete. All 7 modules of Phase 4 (Secure Admin Dashboard) are now implemented:
+Phase 4.7 and its final accuracy patch are complete. All 7 modules of Phase 4 (Secure Admin Dashboard) are now implemented:
 - Phase 4.1: Authentication & API Foundation ✅
 - Phase 4.2: Admin Login UI & Layout ✅
 - Phase 4.3: Overview KPIs & Live Metrics ✅

@@ -162,7 +162,7 @@ export default function AuditLogsPage() {
             Audit Logs
           </h1>
           <p className="text-xs text-body-muted mt-0.5">
-            Chronological, immutable record of administrative actions, price edits, cancellations, and logins
+            Chronological read-only record of administrative actions, price edits, cancellations, and logins
           </p>
         </div>
 

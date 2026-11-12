@@ -4,7 +4,6 @@ import {
   IndianRupee,
   ShoppingBag,
   TrendingUp,
-  CheckCircle2,
   RefreshCw,
   AlertCircle,
   Clock,
@@ -160,8 +159,8 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Primary KPI Row: 4 Essential Performance Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Primary KPI Row: 3 Core Performance Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* 1. Today's Total Sales */}
         <DashboardKpiCard
           title="Today's Total Sales"
@@ -172,7 +171,7 @@ export default function AdminDashboardPage() {
           loading={loading}
         />
 
-        {/* 2. Today's Paid Bills (Not all orders or cancellations) */}
+        {/* 2. Today's Paid Bills */}
         <DashboardKpiCard
           title="Paid Bills"
           value={data ? formatNumber(data.todayPaidBills) : '—'}
@@ -191,19 +190,6 @@ export default function AdminDashboardPage() {
           value={data ? formatCurrency(data.averageOrderValue) : '—'}
           subtitle="Average ticket size per settled order"
           icon={TrendingUp}
-          loading={loading}
-        />
-
-        {/* 4. Settled Invoices (No misleading completion percentage) */}
-        <DashboardKpiCard
-          title="Settled Invoices"
-          value={
-            data
-              ? `${formatNumber(data.todayPaidBills)} Bills`
-              : '—'
-          }
-          subtitle="Verified paid bills in today's register"
-          icon={CheckCircle2}
           loading={loading}
         />
       </div>

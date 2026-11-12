@@ -161,20 +161,22 @@ export default function AuditLogDetailModal({ isOpen, onClose, log = null }) {
               Client IP Address
             </span>
             <span className="text-xs font-mono font-semibold text-plum-royal block mt-0.5">
-              {log.ipAddress || '127.0.0.1'}
+              {log.ipAddress || '—'}
             </span>
-            <span className="text-[9px] text-body-muted">Internal Network</span>
+            <span className="text-[9px] text-body-muted">
+              {log.ipAddress ? 'Logged IP' : 'Unavailable'}
+            </span>
           </div>
 
           <div>
             <span className="text-[10px] font-semibold uppercase text-body-muted tracking-wider block">
-              Audit Status
+              Interface Access
             </span>
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>Immutable</span>
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-plum-royal mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+              <span>Read-Only</span>
             </span>
-            <span className="text-[9px] text-body-muted block">Verified</span>
+            <span className="text-[9px] text-body-muted block">Admin View</span>
           </div>
         </div>
 
@@ -269,11 +271,11 @@ export default function AuditLogDetailModal({ isOpen, onClose, log = null }) {
           </div>
         </div>
 
-        {/* Regulatory Protection Notice */}
+        {/* Read-Only Notice */}
         <div className="p-3.5 rounded-2xl bg-lavender-50/70 border border-lavender-200 text-body-muted text-xs flex items-start gap-2.5">
           <ShieldAlert className="w-4 h-4 text-plum-royal shrink-0 mt-0.5" />
           <p className="text-[11px] leading-relaxed">
-            <strong className="text-plum-royal font-semibold">Regulatory Compliance Guarantee:</strong> Audit logs are append-only and cryptographically immutable. Edit and delete controls are strictly suppressed across all system interfaces to preserve regulatory compliance and operational traceability.
+            <strong className="text-plum-royal font-semibold">Audit Record Notice:</strong> Audit records are presented as a read-only history in this admin interface. Edit and delete controls are intentionally suppressed. Backend-level tamper-proof or cryptographic verification is not currently implemented.
           </p>
         </div>
 

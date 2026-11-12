@@ -284,7 +284,7 @@ export default function ReportsPage() {
             {data ? formatCurrency(data.todayTotalSales) : '—'}
           </div>
           <p className="text-[11px] text-body-muted mt-1 font-light">
-            Gross settled revenue across all channels today
+            Gross revenue collected across all channels today
           </p>
         </div>
 
@@ -302,7 +302,7 @@ export default function ReportsPage() {
             {data ? formatNumber(data.todayPaidBills) : '—'}
           </div>
           <p className="text-[11px] text-body-muted mt-1 font-light">
-            Verified settled customer invoices today
+            Paid customer invoices recorded today
           </p>
         </div>
 
@@ -320,7 +320,7 @@ export default function ReportsPage() {
             {data ? formatCurrency(data.averageOrderValue) : '—'}
           </div>
           <p className="text-[11px] text-body-muted mt-1 font-light">
-            Average ticket amount per settled bill
+            Average ticket amount per paid bill
           </p>
         </div>
 
@@ -364,7 +364,7 @@ export default function ReportsPage() {
               </h3>
             </div>
             <p className="text-xs text-body-muted mt-0.5 font-light">
-              Distribution of today's settled customer payments across intake methods
+              Distribution of today's customer payments across payment intake methods
             </p>
           </div>
 
@@ -478,7 +478,7 @@ export default function ReportsPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-plum-royal flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-muted" />
-                <span>Other Sales</span>
+                <span>Other Payments</span>
               </span>
               <div className="w-7 h-7 rounded-lg bg-white border border-lavender-200 flex items-center justify-center text-plum-royal print:hidden">
                 <CreditCard className="w-3.5 h-3.5" />
@@ -493,7 +493,7 @@ export default function ReportsPage() {
               </span>
             </div>
             <p className="text-[10px] text-body-muted font-light mt-1 border-t border-lavender-200/60 pt-1.5">
-              Backend aggregation for payment methods other than Cash and UPI
+              Aggregated total of non-Cash and non-UPI payment methods
             </p>
           </div>
         </div>
@@ -510,7 +510,7 @@ export default function ReportsPage() {
               </h3>
             </div>
             <p className="text-xs text-body-muted mt-0.5 font-light">
-              Ranked dish velocities and revenue generation from today's settled bills
+              Ranked dish velocities and revenue generation from today's paid bills
             </p>
           </div>
 
@@ -530,7 +530,7 @@ export default function ReportsPage() {
               No Item Sales Recorded Yet Today
             </h4>
             <p className="text-xs text-body-muted max-w-md mx-auto leading-relaxed font-light">
-              As orders are settled at the POS counter or through table invoices, the highest-volume dishes and beverages will automatically rank here with their sales volumes and revenues.
+              As customer orders are finalized at the register or through table invoices, the highest-volume dishes and beverages will automatically rank here with their sales volumes and revenues.
             </p>
           </div>
         ) : (
@@ -541,7 +541,7 @@ export default function ReportsPage() {
                   <th className="py-3 px-3.5 rounded-l-xl w-14">Rank</th>
                   <th className="py-3 px-4">Menu Item Name</th>
                   <th className="py-3 px-4 text-center">Quantity Sold</th>
-                  <th className="py-3 px-4 text-right">Unit Avg.</th>
+                  <th className="py-3 px-4 text-right">Average Revenue per Item</th>
                   <th className="py-3 px-4 text-right rounded-r-xl">Total Revenue</th>
                 </tr>
               </thead>
