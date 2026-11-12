@@ -13,7 +13,7 @@ import {
 import useAuth from '../../hooks/useAuth';
 
 export default function AdminLoginPage() {
-  const { isAuthenticated, isAdmin, login, error: contextError } = useAuth();
+  const { isAuthenticated, isAdmin, isCashier, login, error: contextError } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -24,9 +24,10 @@ export default function AdminLoginPage() {
   const [errorMessage, setErrorMessage] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // Redirect already authenticated administrators directly to /admin
-  if (isAuthenticated && isAdmin) {
-    const destination = location.state?.from?.pathname || '/admin';
+  // Redirect already authenticated staff directly to destination
+  if (isAuthenticated && (isAdmin || isCashier)) {
+    const defaultDest = isAdmin ? '/admin' : '/pos';
+    const destination = location.state?.from?.pathname || defaultDest;
     return <Navigate to={destination} replace />;
   }
 
@@ -56,7 +57,8 @@ export default function AdminLoginPage() {
       const result = await login(username.trim(), password);
 
       if (result.success) {
-        const destination = location.state?.from?.pathname || '/admin';
+        const defaultDest = result.user?.roles?.includes('ROLE_ADMIN') ? '/admin' : '/pos';
+        const destination = location.state?.from?.pathname || defaultDest;
         navigate(destination, { replace: true });
       } else {
         setErrorMessage(

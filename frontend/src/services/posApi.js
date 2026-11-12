@@ -2,9 +2,8 @@ import api from './api';
 
 /**
  * POS Terminal API Service
- * Handles live catalog loading, customer lookup, and thermal receipt generation.
- * In Phase 5.1, live menu items and categories are loaded directly from authoritative
- * public endpoints without mock fallback pollution, allowing visible error and retry handling.
+ * Handles live catalog loading, customer lookup, bill finalization, and thermal receipt generation.
+ * In Phase 5.2, authoritative bill creation is posted to /api/v1/pos/bills with exact CreateBillRequest contracts.
  */
 
 /**
@@ -39,6 +38,26 @@ export const lookupCustomer = async (phone) => {
 };
 
 /**
+ * Creates and authoritatively finalizes a POS bill
+ * @param {Object} billData CreateBillRequest payload
+ * @returns {Promise<Object>} BillResponse object
+ */
+export const createPosBill = async (billData) => {
+  const response = await api.post('/api/v1/pos/bills', billData);
+  return response.data;
+};
+
+/**
+ * Retrieves full bill details by ID
+ * @param {number|string} billId Bill ID
+ * @returns {Promise<Object>} BillResponse object
+ */
+export const getPosBillById = async (billId) => {
+  const response = await api.get(`/api/v1/pos/bills/${billId}`);
+  return response.data;
+};
+
+/**
  * Retrieves formatted ESC/POS thermal receipt data
  * @param {number|string} billId Bill ID
  * @param {string} [width='80mm'] Printer width ('80mm' or '58mm')
@@ -55,5 +74,7 @@ export default {
   getPosCategories,
   getPosMenuItems,
   lookupCustomer,
+  createPosBill,
+  getPosBillById,
   getThermalReceipt,
 };

@@ -59,14 +59,14 @@ export function AuthProvider({ children }) {
       try {
         const userData = await authApi.getCurrentUser();
         if (isMounted) {
-          const isEligibleAdmin = Boolean(
+          const isEligibleStaff = Boolean(
             userData &&
             userData.active === true &&
             Array.isArray(userData.roles) &&
-            userData.roles.includes('ROLE_ADMIN')
+            (userData.roles.includes('ROLE_ADMIN') || userData.roles.includes('ROLE_CASHIER'))
           );
 
-          if (isEligibleAdmin) {
+          if (isEligibleStaff) {
             setUser(userData);
             setToken(storedToken);
           } else {
@@ -119,18 +119,18 @@ export function AuthProvider({ children }) {
       const receivedToken = loginResponse.token;
       const receivedUser = loginResponse.user;
 
-      // Verify user has ROLE_ADMIN authority
-      const hasAdminRole = Boolean(
+      // Verify user has authorized staff role (ROLE_ADMIN or ROLE_CASHIER)
+      const hasStaffRole = Boolean(
+        receivedUser?.active !== false &&
         receivedUser?.roles &&
         Array.isArray(receivedUser.roles) &&
-        receivedUser.roles.includes('ROLE_ADMIN')
+        (receivedUser.roles.includes('ROLE_ADMIN') || receivedUser.roles.includes('ROLE_CASHIER'))
       );
 
-      if (!hasAdminRole) {
-        // Discard cashier tokens from admin login
+      if (!hasStaffRole) {
         clearSession();
         setLoading(false);
-        const deniedMsg = 'Access denied: Cashier accounts cannot access the admin management portal.';
+        const deniedMsg = 'Access denied: Your account does not possess authorized staff credentials.';
         setError(deniedMsg);
         return { success: false, message: deniedMsg };
       }

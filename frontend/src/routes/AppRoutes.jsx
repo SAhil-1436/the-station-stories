@@ -16,6 +16,7 @@ import ContactPage from '../pages/customer/ContactPage';
 import PublicInvoicePage from '../pages/customer/PublicInvoicePage';
 
 import ProtectedRoute from './ProtectedRoute';
+import PosProtectedRoute from './PosProtectedRoute';
 
 // Admin Pages
 import AdminLoginPage from '../pages/admin/AdminLoginPage';
@@ -45,8 +46,15 @@ export default function AppRoutes() {
         <Route path="bill/view/:uuid" element={<PublicInvoicePage />} />
       </Route>
 
-      {/* POS Terminal Counter Routes (Phase 5.1 Active) */}
-      <Route path="/pos" element={<PosLayout />}>
+      {/* POS Terminal Counter Routes (Phase 5.2 Protected: ROLE_ADMIN, ROLE_CASHIER) */}
+      <Route
+        path="/pos"
+        element={
+          <PosProtectedRoute>
+            <PosLayout />
+          </PosProtectedRoute>
+        }
+      >
         <Route index element={<PosPage />} />
       </Route>
 

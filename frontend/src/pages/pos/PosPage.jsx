@@ -22,15 +22,19 @@ import {
   Sparkles,
   RefreshCw,
   Edit3,
+  ArrowRight,
+  ShieldAlert,
 } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
 import * as posApi from '../../services/posApi';
 import PosReceiptPreviewModal from '../../components/pos/PosReceiptPreviewModal';
 import PosShortcutsModal from '../../components/pos/PosShortcutsModal';
+import PosCheckoutModal from '../../components/pos/PosCheckoutModal';
+import PosBillSuccessModal from '../../components/pos/PosBillSuccessModal';
 import ConfirmModal from '../../components/admin/ConfirmModal';
 
 /**
- * POS Foundation & Desktop Counter Billing Interface (Phase 5.1)
+ * POS Foundation & Desktop Counter Billing Interface (Phase 5.1 & Phase 5.2)
  *
  * Implements:
  * - Live catalog loading from authoritative endpoints (without fake mock data)
@@ -40,7 +44,10 @@ import ConfirmModal from '../../components/admin/ConfirmModal';
  * - Integer paise financial arithmetic (zero floating-point math errors)
  * - DINE_IN vs TAKEAWAY toggle & cabin/table reference
  * - Customer phone lookup & loyalty integration
- * - ESC/POS thermal receipt preview architecture (Phase 5.3 ready)
+ * - Functional Checkout Modal with CASH, UPI, CARD confirmations (Phase 5.2)
+ * - Authoritative POST /api/v1/pos/bills sequence bill creation (Phase 5.2)
+ * - Finalized Bill Success Modal with deliberate "Start New Order" action (Phase 5.2)
+ * - Authoritative ESC/POS thermal receipt integration (Phase 5.2)
  * - Ivory + Royal Plum + Champagne Gold design system
  */
 export default function PosPage() {
@@ -70,10 +77,17 @@ export default function PosPage() {
   const [customerLookupLoading, setCustomerLookupLoading] = useState(false);
   const [customerFound, setCustomerFound] = useState(null);
 
-  // Modals State
+  // Modals & Finalized Bill State
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [isBillSuccessModalOpen, setIsBillSuccessModalOpen] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
+
+  // Authoritative Completed Bill Details
+  const [finalizedBill, setFinalizedBill] = useState(null);
+  const [previewedTotalAtCheckout, setPreviewedTotalAtCheckout] = useState(0);
+  const [receiptBillId, setReceiptBillId] = useState(null); // Non-null = authoritative; null = draft preview
 
   // Refs
   const searchInputRef = useRef(null);
@@ -137,7 +151,6 @@ export default function PosPage() {
   }, [menuItems, selectedCategory, dietFilter, searchQuery]);
 
   // 3. Integer Paise Arithmetic for Financial Integrity
-  // Total in paise = sum(Math.round(price * 100) * quantity)
   const financialTotals = useMemo(() => {
     const subtotalPaise = cart.reduce((sum, item) => {
       const itemPricePaise = Math.round(Number(item.price || 0) * 100);
@@ -145,7 +158,7 @@ export default function PosPage() {
     }, 0);
 
     const subtotal = subtotalPaise / 100;
-    const discountPaise = 0; // Phase 5.2 discount feature
+    const discountPaise = 0; // Phase 5.2 discount feature (NONE)
     const discount = discountPaise / 100;
     const taxPaise = 0; // GST disabled / Tax-Exempt
     const tax = taxPaise / 100;
@@ -166,6 +179,16 @@ export default function PosPage() {
     };
   }, [cart]);
 
+  // Check if any items in cart are currently marked unavailable (86)
+  const unavailableCartItems = useMemo(() => {
+    return cart.filter((cartItem) => {
+      const catalogItem = menuItems.find((m) => m.id === cartItem.id);
+      if (!catalogItem) return false;
+      const isAvailable = catalogItem.available ?? catalogItem.isAvailable ?? true;
+      return !isAvailable;
+    });
+  }, [cart, menuItems]);
+
   // Currency Formatter
   const formatINR = (val) => {
     return new Intl.NumberFormat('en-IN', {
@@ -183,7 +206,6 @@ export default function PosPage() {
     setCart((prevCart) => {
       const existingIndex = prevCart.findIndex((ci) => ci.id === item.id);
       if (existingIndex > -1) {
-        // Increment quantity
         const updated = [...prevCart];
         updated[existingIndex] = {
           ...updated[existingIndex],
@@ -191,7 +213,6 @@ export default function PosPage() {
         };
         return updated;
       } else {
-        // Add new line item
         return [
           ...prevCart,
           {
@@ -261,7 +282,6 @@ export default function PosPage() {
           setCustomerFound(null);
         }
       } catch {
-        // Customer not yet registered in directory (new customer)
         setCustomerFound(null);
       } finally {
         setCustomerLookupLoading(false);
@@ -271,7 +291,48 @@ export default function PosPage() {
     }
   };
 
-  // 6. Global Keyboard Shortcuts Listener
+  // 6. Checkout & Settlement Flow (Phase 5.2)
+  const handleOpenCheckout = () => {
+    if (cart.length === 0) return;
+    if (unavailableCartItems.length > 0) return;
+    setIsCheckoutModalOpen(true);
+  };
+
+  // Callback when authoritative bill creation succeeds
+  const handleBillSuccess = (createdBill) => {
+    setFinalizedBill(createdBill);
+    setPreviewedTotalAtCheckout(financialTotals.payableTotal);
+    setIsCheckoutModalOpen(false);
+    setIsBillSuccessModalOpen(true);
+    // Note: Do NOT clear cart yet! Cart is cleared only on deliberate "Start New Order" action.
+  };
+
+  // Start new order (deliberate user action)
+  const handleStartNewOrder = () => {
+    setIsBillSuccessModalOpen(false);
+    setFinalizedBill(null);
+    setReceiptBillId(null);
+    setCart([]);
+    setSelectedCartItemId(null);
+    setCabinTableRef('');
+    setCustomerPhone('');
+    setCustomerName('');
+    setCustomerFound(null);
+  };
+
+  // View Authoritative Finalized Thermal Receipt
+  const handleViewAuthoritativeReceipt = (billId) => {
+    setReceiptBillId(billId);
+    setIsReceiptModalOpen(true);
+  };
+
+  // View Draft Order Preview Receipt
+  const handleViewDraftReceipt = () => {
+    setReceiptBillId(null);
+    setIsReceiptModalOpen(true);
+  };
+
+  // 7. Global Keyboard Shortcuts Listener
   useEffect(() => {
     const handleKeyDown = (e) => {
       const activeEl = document.activeElement;
@@ -288,18 +349,22 @@ export default function PosPage() {
         return;
       }
 
-      // 2. "Escape" key handling
+      // 2. "Escape" key handling (modal hierarchy)
       if (e.key === 'Escape') {
-        if (isClearModalOpen) {
-          setIsClearModalOpen(false);
-          return;
-        }
         if (isReceiptModalOpen) {
           setIsReceiptModalOpen(false);
           return;
         }
+        if (isCheckoutModalOpen) {
+          setIsCheckoutModalOpen(false);
+          return;
+        }
         if (isShortcutsModalOpen) {
           setIsShortcutsModalOpen(false);
+          return;
+        }
+        if (isClearModalOpen) {
+          setIsClearModalOpen(false);
           return;
         }
         if (isInputFocused) {
@@ -331,19 +396,35 @@ export default function PosPage() {
         }
         if (e.key === 'p' || e.key === 'P') {
           e.preventDefault();
-          setIsReceiptModalOpen(true);
+          handleViewDraftReceipt();
+          return;
+        }
+        if (e.key === 's' || e.key === 'S') {
+          e.preventDefault();
+          if (cart.length > 0 && unavailableCartItems.length === 0) {
+            handleOpenCheckout();
+          }
           return;
         }
       }
 
-      // 4. "?" toggles shortcuts modal
+      // 4. F4 key triggers checkout directly
+      if (e.key === 'F4') {
+        e.preventDefault();
+        if (cart.length > 0 && unavailableCartItems.length === 0) {
+          handleOpenCheckout();
+        }
+        return;
+      }
+
+      // 5. "?" toggles shortcuts modal
       if (e.key === '?' && !isInputFocused) {
         e.preventDefault();
         setIsShortcutsModalOpen((prev) => !prev);
         return;
       }
 
-      // 5. Quantity shortcuts (+ / - / Del) for selected cart item
+      // 6. Quantity shortcuts (+ / - / Del) for selected cart item
       if (!isInputFocused && selectedCartItemId) {
         if (e.key === '+' || e.key === '=') {
           e.preventDefault();
@@ -362,10 +443,12 @@ export default function PosPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     isClearModalOpen,
+    isCheckoutModalOpen,
     isReceiptModalOpen,
     isShortcutsModalOpen,
     selectedCartItemId,
     cart.length,
+    unavailableCartItems.length,
   ]);
 
   return (
@@ -697,14 +780,18 @@ export default function PosPage() {
           {orderType === 'DINE_IN' && (
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-semibold text-body-muted whitespace-nowrap">
-                Table / Cabin:
+                Table / Cabin: <span className="text-red-500">*</span>
               </span>
               <input
                 type="text"
                 value={cabinTableRef}
                 onChange={(e) => setCabinTableRef(e.target.value)}
                 placeholder="e.g. Table 4 / Cabin B"
-                className="flex-1 bg-white border border-lavender-200 focus:border-plum-royal focus:ring-1 focus:ring-plum-royal rounded-lg px-2.5 py-1 text-xs text-body placeholder-body-muted/60"
+                className={`flex-1 bg-white border rounded-lg px-2.5 py-1 text-xs text-body placeholder-body-muted/60 transition-colors ${
+                  !cabinTableRef.trim() && cart.length > 0
+                    ? 'border-amber-400 focus:border-plum-royal'
+                    : 'border-lavender-200 focus:border-plum-royal'
+                }`}
               />
             </div>
           )}
@@ -736,13 +823,25 @@ export default function PosPage() {
           {customerFound && (
             <div className="text-[10px] text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 flex items-center justify-between">
               <span>Loyal Customer: <strong>{customerFound.name}</strong></span>
-              {customerFound.totalVisits && <span>{customerFound.totalVisits} visits</span>}
+              {(customerFound.visitCount || customerFound.totalVisits) ? (
+                <span>{customerFound.visitCount || customerFound.totalVisits} visits • Spent {formatINR(customerFound.totalSpent || 0)}</span>
+              ) : null}
             </div>
           )}
         </div>
 
         {/* Cart Items Scrollable List */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-ivory-50/20">
+          {/* Out of Stock Warning Banner in Cart */}
+          {unavailableCartItems.length > 0 && (
+            <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>
+                <strong>{unavailableCartItems.length} item(s)</strong> in your cart are currently out of stock. Remove them before checkout.
+              </span>
+            </div>
+          )}
+
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center p-6 text-center text-body-muted">
               <div className="w-12 h-12 rounded-2xl bg-lavender-100 flex items-center justify-center text-plum-royal mb-2">
@@ -758,8 +857,8 @@ export default function PosPage() {
                 <div className="font-semibold text-plum-royal">Quick Keys:</div>
                 <div className="flex justify-between"><span>Focus Search:</span> <kbd className="font-mono font-bold">/</kbd></div>
                 <div className="flex justify-between"><span>Qty Up / Down:</span> <kbd className="font-mono font-bold">+ / -</kbd></div>
+                <div className="flex justify-between"><span>Proceed to Checkout:</span> <kbd className="font-mono font-bold">F4 / Alt+S</kbd></div>
                 <div className="flex justify-between"><span>Clear Cart:</span> <kbd className="font-mono font-bold">Alt + C</kbd></div>
-                <div className="flex justify-between"><span>Preview Receipt:</span> <kbd className="font-mono font-bold">Alt + P</kbd></div>
               </div>
             </div>
           ) : (
@@ -767,13 +866,16 @@ export default function PosPage() {
               const isSelected = selectedCartItemId === item.id;
               const itemTotal = (Math.round(item.price * 100) * item.quantity) / 100;
               const isEditingNotes = editingNotesItemId === item.id;
+              const isItemUnavailable = unavailableCartItems.some((u) => u.id === item.id);
 
               return (
                 <div
                   key={item.id}
                   onClick={() => setSelectedCartItemId(item.id)}
                   className={`p-2.5 rounded-xl border transition-all text-xs cursor-pointer ${
-                    isSelected
+                    isItemUnavailable
+                      ? 'bg-red-50/60 border-red-300'
+                      : isSelected
                       ? 'bg-plum-50/70 border-plum-royal ring-1 ring-plum-royal shadow-xs'
                       : 'bg-white border-lavender-200 hover:border-gold/50'
                   }`}
@@ -795,6 +897,11 @@ export default function PosPage() {
                         <span className="font-bold text-plum-royal truncate">
                           {item.name}
                         </span>
+                        {isItemUnavailable && (
+                          <span className="text-[9px] bg-red-100 text-red-700 px-1 rounded font-bold uppercase">
+                            Out of stock
+                          </span>
+                        )}
                       </div>
                       <div className="text-[10px] text-body-muted pl-4">
                         {formatINR(item.price)} each
@@ -914,17 +1021,17 @@ export default function PosPage() {
             </div>
           </div>
 
-          {/* Action Buttons: Preview Receipt & Settle Bill */}
+          {/* Action Buttons: Preview Draft Receipt & Shortcuts */}
           <div className="space-y-2 pt-1">
             <div className="grid grid-cols-2 gap-2 text-xs">
               <button
                 type="button"
-                onClick={() => setIsReceiptModalOpen(true)}
+                onClick={handleViewDraftReceipt}
                 className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-lavender-100 hover:bg-lavender-200 text-plum-royal font-semibold border border-lavender-200 transition-colors shadow-xs"
-                title="Preview ESC/POS Thermal Receipt (Alt + P)"
+                title="Preview ESC/POS Draft Receipt (Alt + P)"
               >
                 <Printer className="w-3.5 h-3.5 text-gold" />
-                <span>Preview Receipt</span>
+                <span>Draft Receipt</span>
               </button>
 
               <button
@@ -938,22 +1045,24 @@ export default function PosPage() {
               </button>
             </div>
 
-            {/* Settle & Finalize Bill Button (Phase 5.2 Placeholder) */}
-            <div className="relative group">
-              <button
-                type="button"
-                disabled
-                className="w-full py-2.5 px-4 rounded-xl bg-plum-royal/40 text-ivory/60 font-serif font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed shadow-none border border-plum-900/10"
-              >
-                <CreditCard className="w-4 h-4 text-gold/50" />
-                <span>Proceed to Settle & Bill (Phase 5.2)</span>
-              </button>
-
-              {/* Informative Tooltip */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-72 p-2 rounded-xl bg-plum-dark text-ivory text-[11px] leading-relaxed text-center shadow-luxury z-30 pointer-events-none">
-                Settlement, payment processing (Cash/UPI), and authoritative sequence bill creation will be fully enabled in Phase 5.2.
-              </div>
-            </div>
+            {/* Settle & Finalize Bill Button (Phase 5.2 Functional Checkout) */}
+            <button
+              type="button"
+              disabled={cart.length === 0 || unavailableCartItems.length > 0}
+              onClick={handleOpenCheckout}
+              className={`w-full py-2.5 px-4 rounded-xl font-serif font-bold text-sm flex items-center justify-center gap-2 shadow-soft transition-all ${
+                cart.length > 0 && unavailableCartItems.length === 0
+                  ? 'bg-plum-royal hover:bg-plum-dark text-white cursor-pointer active:scale-[0.99]'
+                  : 'bg-plum-royal/40 text-ivory/60 cursor-not-allowed shadow-none border border-plum-900/10'
+              }`}
+              title="Proceed to Payment & Bill Generation (F4 / Alt + S)"
+            >
+              <CreditCard className="w-4 h-4 text-gold" />
+              <span>
+                Proceed to Checkout ({formatINR(financialTotals.payableTotal)})
+              </span>
+              <ArrowRight className="w-4 h-4 ml-1 text-gold" />
+            </button>
           </div>
         </div>
       </div>
@@ -974,10 +1083,37 @@ export default function PosPage() {
         confirmVariant="danger"
       />
 
-      {/* 2. ESC/POS Thermal Receipt Preview Modal (Phase 5.3 Ready) */}
+      {/* 2. Functional Checkout & Payment Settlement Modal (Phase 5.2) */}
+      <PosCheckoutModal
+        isOpen={isCheckoutModalOpen}
+        onClose={() => setIsCheckoutModalOpen(false)}
+        cart={cart}
+        orderType={orderType}
+        cabinTableRef={cabinTableRef}
+        customerName={customerName}
+        customerPhone={customerPhone}
+        subtotal={financialTotals.subtotal}
+        payableTotal={financialTotals.payableTotal}
+        onBillSuccess={handleBillSuccess}
+      />
+
+      {/* 3. Completed Bill / Invoice Success Modal (Phase 5.2) */}
+      <PosBillSuccessModal
+        isOpen={isBillSuccessModalOpen}
+        bill={finalizedBill}
+        previewedTotal={previewedTotalAtCheckout}
+        onViewReceipt={handleViewAuthoritativeReceipt}
+        onStartNewOrder={handleStartNewOrder}
+      />
+
+      {/* 4. ESC/POS Thermal Receipt Modal (Authoritative & Draft modes) */}
       <PosReceiptPreviewModal
         isOpen={isReceiptModalOpen}
-        onClose={() => setIsReceiptModalOpen(false)}
+        onClose={() => {
+          setIsReceiptModalOpen(false);
+          setReceiptBillId(null);
+        }}
+        billId={receiptBillId}
         cart={cart}
         orderType={orderType}
         tableRef={cabinTableRef}
@@ -990,7 +1126,7 @@ export default function PosPage() {
         payableTotal={financialTotals.payableTotal}
       />
 
-      {/* 3. Keyboard Shortcuts Reference Modal */}
+      {/* 5. Keyboard Shortcuts Reference Modal */}
       <PosShortcutsModal
         isOpen={isShortcutsModalOpen}
         onClose={() => setIsShortcutsModalOpen(false)}

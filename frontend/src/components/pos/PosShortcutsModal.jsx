@@ -26,6 +26,7 @@ export default function PosShortcutsModal({ isOpen, onClose }) {
     { key: '+ or =', desc: 'Increase quantity of selected cart item (+1)' },
     { key: '- or _', desc: 'Decrease quantity of selected cart item (-1)' },
     { key: 'Del or Backspace', desc: 'Remove selected item from order cart' },
+    { key: 'F4 or Alt + S', desc: 'Proceed to Checkout & Settlement' },
     { key: 'Alt + C', desc: 'Open confirmation dialog to clear cart' },
     { key: 'Alt + D', desc: 'Switch order mode to DINE-IN' },
     { key: 'Alt + T', desc: 'Switch order mode to TAKEAWAY' },
