@@ -59,7 +59,14 @@ export function AuthProvider({ children }) {
       try {
         const userData = await authApi.getCurrentUser();
         if (isMounted) {
-          if (userData && userData.active) {
+          const isEligibleAdmin = Boolean(
+            userData &&
+            userData.active === true &&
+            Array.isArray(userData.roles) &&
+            userData.roles.includes('ROLE_ADMIN')
+          );
+
+          if (isEligibleAdmin) {
             setUser(userData);
             setToken(storedToken);
           } else {
