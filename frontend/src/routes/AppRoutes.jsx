@@ -45,7 +45,7 @@ export default function AppRoutes() {
         <Route path="bill/view/:uuid" element={<PublicInvoicePage />} />
       </Route>
 
-      {/* POS Terminal Routes (Preserved Placeholders) */}
+      {/* POS Terminal Counter Routes (Phase 5.1 Active) */}
       <Route path="/pos" element={<PosLayout />}>
         <Route index element={<PosPage />} />
       </Route>

@@ -1,104 +1,1000 @@
-import React from 'react';
-import { ShoppingCart, Printer, Search, CreditCard, Banknote, QrCode } from 'lucide-react';
-import HealthStatusBanner from '../../components/common/HealthStatusBanner';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import {
+  Search,
+  ShoppingCart,
+  Plus,
+  Minus,
+  Trash2,
+  Printer,
+  CreditCard,
+  Banknote,
+  QrCode,
+  Utensils,
+  ShoppingBag,
+  User,
+  Phone,
+  RotateCcw,
+  AlertTriangle,
+  FileText,
+  Info,
+  Check,
+  X,
+  Sparkles,
+  RefreshCw,
+  Edit3,
+} from 'lucide-react';
+import useAuth from '../../hooks/useAuth';
+import * as posApi from '../../services/posApi';
+import PosReceiptPreviewModal from '../../components/pos/PosReceiptPreviewModal';
+import PosShortcutsModal from '../../components/pos/PosShortcutsModal';
+import ConfirmModal from '../../components/admin/ConfirmModal';
 
+/**
+ * POS Foundation & Desktop Counter Billing Interface (Phase 5.1)
+ *
+ * Implements:
+ * - Live catalog loading from authoritative endpoints (without fake mock data)
+ * - Rapid search (/ shortcut) & category filtering
+ * - Strict 86/out-of-stock dish prevention
+ * - Cart management with selected-item keyboard quantity adjustments (+ / -)
+ * - Integer paise financial arithmetic (zero floating-point math errors)
+ * - DINE_IN vs TAKEAWAY toggle & cabin/table reference
+ * - Customer phone lookup & loyalty integration
+ * - ESC/POS thermal receipt preview architecture (Phase 5.3 ready)
+ * - Ivory + Royal Plum + Champagne Gold design system
+ */
 export default function PosPage() {
+  const { user } = useAuth();
+
+  // Catalog State
+  const [categories, setCategories] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Filter State
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dietFilter, setDietFilter] = useState('ALL'); // 'ALL' | 'VEG' | 'NON_VEG'
+
+  // Cart State
+  const [cart, setCart] = useState([]);
+  const [selectedCartItemId, setSelectedCartItemId] = useState(null);
+  const [editingNotesItemId, setEditingNotesItemId] = useState(null);
+
+  // Order Details State
+  const [orderType, setOrderType] = useState('DINE_IN'); // 'DINE_IN' | 'TAKEAWAY'
+  const [cabinTableRef, setCabinTableRef] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerLookupLoading, setCustomerLookupLoading] = useState(false);
+  const [customerFound, setCustomerFound] = useState(null);
+
+  // Modals State
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
+
+  // Refs
+  const searchInputRef = useRef(null);
+
+  // 1. Fetch live categories and menu items
+  const fetchCatalog = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [catsData, itemsData] = await Promise.all([
+        posApi.getPosCategories(),
+        posApi.getPosMenuItems({ availableOnly: false }),
+      ]);
+      setCategories(Array.isArray(catsData) ? catsData : []);
+      setMenuItems(Array.isArray(itemsData) ? itemsData : []);
+    } catch (err) {
+      setError(err.message || 'Failed to connect to billing server. Please check backend.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCatalog();
+  }, [fetchCatalog]);
+
+  // 2. Filtered items computed via memoization
+  const filteredItems = useMemo(() => {
+    let items = [...menuItems];
+
+    // Category filter
+    if (selectedCategory !== 'ALL') {
+      items = items.filter((item) => Number(item.categoryId) === Number(selectedCategory));
+    }
+
+    // Diet filter (Veg / Non-veg)
+    if (dietFilter === 'VEG') {
+      items = items.filter((item) => {
+        const isVeg = item.veg ?? item.isVeg ?? true;
+        return isVeg === true;
+      });
+    } else if (dietFilter === 'NON_VEG') {
+      items = items.filter((item) => {
+        const isVeg = item.veg ?? item.isVeg ?? true;
+        return isVeg === false;
+      });
+    }
+
+    // Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      items = items.filter((item) => {
+        const nameMatch = item.name?.toLowerCase().includes(q);
+        const hindiMatch = item.hindiName?.includes(q);
+        const descMatch = item.description?.toLowerCase().includes(q);
+        return nameMatch || hindiMatch || descMatch;
+      });
+    }
+
+    return items;
+  }, [menuItems, selectedCategory, dietFilter, searchQuery]);
+
+  // 3. Integer Paise Arithmetic for Financial Integrity
+  // Total in paise = sum(Math.round(price * 100) * quantity)
+  const financialTotals = useMemo(() => {
+    const subtotalPaise = cart.reduce((sum, item) => {
+      const itemPricePaise = Math.round(Number(item.price || 0) * 100);
+      return sum + itemPricePaise * item.quantity;
+    }, 0);
+
+    const subtotal = subtotalPaise / 100;
+    const discountPaise = 0; // Phase 5.2 discount feature
+    const discount = discountPaise / 100;
+    const taxPaise = 0; // GST disabled / Tax-Exempt
+    const tax = taxPaise / 100;
+    const payablePaise = subtotalPaise - discountPaise + taxPaise;
+    const payableTotal = payablePaise / 100;
+    const totalItemUnits = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+    return {
+      subtotalPaise,
+      subtotal,
+      discountPaise,
+      discount,
+      taxPaise,
+      tax,
+      payablePaise,
+      payableTotal,
+      totalItemUnits,
+    };
+  }, [cart]);
+
+  // Currency Formatter
+  const formatINR = (val) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+    }).format(val || 0);
+  };
+
+  // 4. Cart Operations
+  const handleAddToCart = (item) => {
+    const isAvailable = item.available ?? item.isAvailable ?? true;
+    if (!isAvailable) return; // 86 switch protection
+
+    setCart((prevCart) => {
+      const existingIndex = prevCart.findIndex((ci) => ci.id === item.id);
+      if (existingIndex > -1) {
+        // Increment quantity
+        const updated = [...prevCart];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: updated[existingIndex].quantity + 1,
+        };
+        return updated;
+      } else {
+        // Add new line item
+        return [
+          ...prevCart,
+          {
+            id: item.id,
+            name: item.name,
+            hindiName: item.hindiName,
+            price: Number(item.price),
+            veg: item.veg ?? item.isVeg ?? true,
+            quantity: 1,
+            notes: '',
+          },
+        ];
+      }
+    });
+
+    setSelectedCartItemId(item.id);
+  };
+
+  const handleUpdateQuantity = (itemId, delta) => {
+    setCart((prevCart) => {
+      return prevCart
+        .map((item) => {
+          if (item.id === itemId) {
+            const newQty = item.quantity + delta;
+            return newQty > 0 ? { ...item, quantity: newQty } : null;
+          }
+          return item;
+        })
+        .filter(Boolean);
+    });
+  };
+
+  const handleRemoveFromCart = (itemId) => {
+    setCart((prevCart) => prevCart.filter((item) => item.id !== itemId));
+    if (selectedCartItemId === itemId) {
+      setSelectedCartItemId(null);
+    }
+  };
+
+  const handleUpdateNotes = (itemId, notes) => {
+    setCart((prevCart) =>
+      prevCart.map((item) => (item.id === itemId ? { ...item, notes } : item))
+    );
+  };
+
+  const handleClearCart = () => {
+    setCart([]);
+    setSelectedCartItemId(null);
+    setIsClearModalOpen(false);
+  };
+
+  // 5. Customer Phone Lookup
+  const handlePhoneChange = async (e) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setCustomerPhone(val);
+
+    if (val.length === 10) {
+      setCustomerLookupLoading(true);
+      try {
+        const found = await posApi.lookupCustomer(val);
+        if (found) {
+          setCustomerFound(found);
+          if (found.name && !customerName) {
+            setCustomerName(found.name);
+          }
+        } else {
+          setCustomerFound(null);
+        }
+      } catch {
+        // Customer not yet registered in directory (new customer)
+        setCustomerFound(null);
+      } finally {
+        setCustomerLookupLoading(false);
+      }
+    } else {
+      setCustomerFound(null);
+    }
+  };
+
+  // 6. Global Keyboard Shortcuts Listener
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const activeEl = document.activeElement;
+      const isInputFocused =
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.isContentEditable);
+
+      // 1. "/" focuses search bar
+      if (e.key === '/' && !isInputFocused) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      // 2. "Escape" key handling
+      if (e.key === 'Escape') {
+        if (isClearModalOpen) {
+          setIsClearModalOpen(false);
+          return;
+        }
+        if (isReceiptModalOpen) {
+          setIsReceiptModalOpen(false);
+          return;
+        }
+        if (isShortcutsModalOpen) {
+          setIsShortcutsModalOpen(false);
+          return;
+        }
+        if (isInputFocused) {
+          activeEl.blur();
+          return;
+        }
+        if (selectedCartItemId) {
+          setSelectedCartItemId(null);
+          return;
+        }
+      }
+
+      // 3. Shortcuts requiring Alt key
+      if (e.altKey) {
+        if (e.key === 'c' || e.key === 'C') {
+          e.preventDefault();
+          if (cart.length > 0) setIsClearModalOpen(true);
+          return;
+        }
+        if (e.key === 'd' || e.key === 'D') {
+          e.preventDefault();
+          setOrderType('DINE_IN');
+          return;
+        }
+        if (e.key === 't' || e.key === 'T') {
+          e.preventDefault();
+          setOrderType('TAKEAWAY');
+          return;
+        }
+        if (e.key === 'p' || e.key === 'P') {
+          e.preventDefault();
+          setIsReceiptModalOpen(true);
+          return;
+        }
+      }
+
+      // 4. "?" toggles shortcuts modal
+      if (e.key === '?' && !isInputFocused) {
+        e.preventDefault();
+        setIsShortcutsModalOpen((prev) => !prev);
+        return;
+      }
+
+      // 5. Quantity shortcuts (+ / - / Del) for selected cart item
+      if (!isInputFocused && selectedCartItemId) {
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          handleUpdateQuantity(selectedCartItemId, 1);
+        } else if (e.key === '-' || e.key === '_') {
+          e.preventDefault();
+          handleUpdateQuantity(selectedCartItemId, -1);
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          handleRemoveFromCart(selectedCartItemId);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    isClearModalOpen,
+    isReceiptModalOpen,
+    isShortcutsModalOpen,
+    selectedCartItemId,
+    cart.length,
+  ]);
+
   return (
-    <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
-      {/* Left Pane: Catalog & Category Selector Placeholder */}
-      <div className="flex-1 flex flex-col bg-charcoal-900 border border-charcoal-800 rounded-xl p-5 overflow-hidden">
-        <div className="flex items-center justify-between pb-4 border-b border-charcoal-800 gap-3">
+    <div className="flex-1 flex flex-col lg:flex-row gap-3.5 min-h-0 overflow-hidden font-sans">
+      {/* ==================================================================== */}
+      {/* LEFT COLUMN: Product Catalog, Search, Categories, Grid */}
+      {/* ==================================================================== */}
+      <div className="flex-1 flex flex-col bg-white border border-lavender-200 rounded-2xl shadow-soft overflow-hidden min-w-0">
+        {/* Top Control Bar: Search & Diet Toggles */}
+        <div className="p-3 sm:p-3.5 border-b border-lavender-200 bg-lavender-50/50 flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between shrink-0">
+          {/* Product Search Box */}
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-gray-500 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-body-muted absolute left-3 top-2.5" />
             <input
+              ref={searchInputRef}
               type="text"
-              disabled
-              placeholder="Search dishes or scan code (Phase 4)..."
-              className="w-full bg-charcoal-800 border border-charcoal-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-ivory-100 placeholder-gray-500 opacity-60 cursor-not-allowed"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search dishes by name / हिंदी (Press / to search)..."
+              className="w-full bg-white border border-lavender-200 focus:border-plum-royal focus:ring-1 focus:ring-plum-royal rounded-xl pl-9 pr-9 py-2 text-xs text-body placeholder-body-muted/70 transition-all shadow-xs"
             />
-          </div>
-          <span className="text-xs px-2.5 py-1 rounded bg-gold-600/10 text-gold-500 border border-gold-600/30 whitespace-nowrap">
-            Route: /pos
-          </span>
-        </div>
-
-        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-gray-400">
-          <div className="w-12 h-12 rounded-xl bg-charcoal-800 border border-charcoal-700 flex items-center justify-center text-gold-500 mb-3">
-            <ShoppingCart className="w-6 h-6" />
-          </div>
-          <h2 className="font-serif font-bold text-lg text-ivory-50">POS Product Catalog Placeholder</h2>
-          <p className="text-xs max-w-md mt-2 text-gray-400 leading-relaxed">
-            Fast touch and keyboard item selection grid, category buttons (Burgers, Pizzas, Fast Food, Beverages), and live dish stock toggles will be fully connected to backend APIs in Phase 4.
-          </p>
-        </div>
-
-        <div className="mt-auto pt-4 border-t border-charcoal-800">
-          <HealthStatusBanner />
-        </div>
-      </div>
-
-      {/* Right Pane: Live Cart & Thermal Print Simulator Placeholder */}
-      <div className="w-full lg:w-96 bg-charcoal-900 border border-charcoal-800 rounded-xl p-5 flex flex-col justify-between shrink-0">
-        <div>
-          <div className="flex items-center justify-between pb-3 border-b border-charcoal-800">
-            <h3 className="font-serif font-bold text-sm text-ivory-50 flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4 text-gold-500" />
-              <span>Current Order Cart</span>
-            </h3>
-            <span className="text-xs text-gray-500 font-mono">0 Items</span>
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-2 text-body-muted hover:text-plum-royal"
+                aria-label="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            ) : (
+              <kbd className="hidden sm:inline-block absolute right-2.5 top-2 text-[10px] bg-lavender-100 text-body-muted px-1.5 py-0.5 rounded font-mono border border-lavender-200">
+                /
+              </kbd>
+            )}
           </div>
 
-          <div className="py-8 text-center text-xs text-gray-500">
-            Cart is empty. Items selected from counter catalog will populate here.
-          </div>
-
-          <div className="space-y-2 pt-4 border-t border-charcoal-800/80 text-xs">
-            <div className="flex justify-between text-gray-400">
-              <span>Subtotal</span>
-              <span className="font-mono text-ivory-100">₹0.00</span>
-            </div>
-            <div className="flex justify-between text-gray-400">
-              <span>Discount</span>
-              <span className="font-mono text-ivory-100">₹0.00</span>
-            </div>
-            <div className="flex justify-between text-gray-400">
-              <span>Tax (GST Disabled)</span>
-              <span className="font-mono text-emerald-400">₹0.00</span>
-            </div>
-            <div className="flex justify-between font-bold text-sm text-gold-500 pt-2 border-t border-charcoal-700/60">
-              <span>Payable Total</span>
-              <span className="font-mono">₹0.00</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2.5 pt-6 border-t border-charcoal-800">
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          {/* Diet Filter Switcher (All / Veg / Non-Veg) */}
+          <div className="flex items-center gap-1 bg-lavender-100 p-1 rounded-xl border border-lavender-200 shrink-0 self-start sm:self-auto text-xs font-semibold">
             <button
-              disabled
-              className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-charcoal-800 border border-charcoal-700 text-gray-400 opacity-60 cursor-not-allowed"
+              type="button"
+              onClick={() => setDietFilter('ALL')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                dietFilter === 'ALL'
+                  ? 'bg-plum-royal text-ivory shadow-xs'
+                  : 'text-body-muted hover:text-plum-royal'
+              }`}
             >
-              <Banknote className="w-3.5 h-3.5" />
-              <span>Cash</span>
+              All Items ({menuItems.length})
             </button>
             <button
-              disabled
-              className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-charcoal-800 border border-charcoal-700 text-gray-400 opacity-60 cursor-not-allowed"
+              type="button"
+              onClick={() => setDietFilter('VEG')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                dietFilter === 'VEG'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : 'text-body-muted hover:text-emerald-700'
+              }`}
             >
-              <QrCode className="w-3.5 h-3.5" />
-              <span>UPI QR</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Veg</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDietFilter('NON_VEG')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                dietFilter === 'NON_VEG'
+                  ? 'bg-rose-700 text-white shadow-xs'
+                  : 'text-body-muted hover:text-rose-700'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-red-500" />
+              <span>Non-Veg</span>
             </button>
           </div>
+        </div>
 
+        {/* Category Horizontal Pill Selector */}
+        <div className="px-3.5 py-2 border-b border-lavender-200 bg-white flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
           <button
-            disabled
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-gold-600/40 text-charcoal-950 font-semibold text-xs opacity-60 cursor-not-allowed"
+            type="button"
+            onClick={() => setSelectedCategory('ALL')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${
+              selectedCategory === 'ALL'
+                ? 'bg-plum-royal text-ivory border-plum-royal shadow-xs'
+                : 'bg-lavender-50 hover:bg-lavender-100 text-body border-lavender-200'
+            }`}
           >
-            <Printer className="w-4 h-4" />
-            <span>Settle & Print Thermal Receipt (Phase 4)</span>
+            All Categories
           </button>
+          {categories.map((cat) => {
+            const isSelected = selectedCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all border flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-plum-royal text-ivory border-plum-royal shadow-xs'
+                    : 'bg-lavender-50 hover:bg-lavender-100 text-body border-lavender-200'
+                }`}
+              >
+                <span>{cat.name}</span>
+                {cat.hindiName && (
+                  <span className={`text-[10px] font-hindi opacity-80 ${isSelected ? 'text-gold-light' : 'text-body-muted'}`}>
+                    ({cat.hindiName})
+                  </span>
+                )}
+                {cat.itemCount !== undefined && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      isSelected ? 'bg-gold/30 text-white' : 'bg-lavender-200 text-body-muted'
+                    }`}
+                  >
+                    {cat.itemCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Catalog Content Area */}
+        <div className="flex-1 overflow-y-auto p-3.5 bg-ivory-50/40">
+          {loading ? (
+            <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+              <RefreshCw className="w-8 h-8 text-gold animate-spin mb-3" />
+              <div className="font-serif font-bold text-base text-plum-royal">
+                Loading Counter Catalog...
+              </div>
+              <p className="text-xs text-body-muted mt-1">
+                Connecting to live server endpoints
+              </p>
+            </div>
+          ) : error ? (
+            <div className="h-full flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center text-red-600 mb-3">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <h3 className="font-serif font-bold text-base text-plum-royal">
+                Unable to Load Menu Items
+              </h3>
+              <p className="text-xs text-body-muted mt-1 mb-4 leading-relaxed">
+                {error}
+              </p>
+              <button
+                type="button"
+                onClick={fetchCatalog}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-plum-royal hover:bg-plum-dark text-white text-xs font-semibold shadow-soft transition-all"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Retry Connection</span>
+              </button>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center p-8 text-center text-body-muted">
+              <Utensils className="w-10 h-10 text-gold/60 mb-2" />
+              <div className="font-serif font-bold text-base text-plum-royal">
+                No matching dishes found
+              </div>
+              <p className="text-xs mt-1 text-body-muted max-w-xs">
+                No menu items match your search "{searchQuery}" or active category filters.
+              </p>
+              {(searchQuery || selectedCategory !== 'ALL' || dietFilter !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('ALL');
+                    setDietFilter('ALL');
+                  }}
+                  className="mt-3 text-xs text-plum-royal font-semibold hover:underline"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          ) : (
+            /* Product Grid */
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5">
+              {filteredItems.map((item) => {
+                const isAvailable = item.available ?? item.isAvailable ?? true;
+                const isVeg = item.veg ?? item.isVeg ?? true;
+                const cartEntry = cart.find((c) => c.id === item.id);
+                const quantityInCart = cartEntry ? cartEntry.quantity : 0;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    disabled={!isAvailable}
+                    onClick={() => handleAddToCart(item)}
+                    className={`relative text-left p-3 rounded-2xl border transition-all duration-150 flex flex-col justify-between group select-none ${
+                      !isAvailable
+                        ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'
+                        : quantityInCart > 0
+                        ? 'bg-plum-50/50 border-plum-royal/40 shadow-soft hover:border-plum-royal hover:shadow-md'
+                        : 'bg-white border-lavender-200 hover:border-gold/60 hover:shadow-soft active:scale-[0.98]'
+                    }`}
+                  >
+                    {/* Top Row: Veg/Non-Veg Icon & Category/86 Tag */}
+                    <div className="flex items-start justify-between gap-1 mb-2">
+                      {/* FSSAI Veg / Non-Veg Indicator */}
+                      <span
+                        className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                          isVeg
+                            ? 'border-emerald-600 bg-white'
+                            : 'border-red-600 bg-white'
+                        }`}
+                        title={isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            isVeg ? 'bg-emerald-600' : 'bg-red-600'
+                          }`}
+                        />
+                      </span>
+
+                      {/* 86 / Out of Stock Badge */}
+                      {!isAvailable ? (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
+                          86 / Out of Stock
+                        </span>
+                      ) : quantityInCart > 0 ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-plum-royal text-ivory font-mono shadow-xs">
+                          {quantityInCart} in cart
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-body-muted/70 truncate max-w-[80px]">
+                          {item.categoryName}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Dish Title & Hindi Subtitle */}
+                    <div className="flex-1 mb-2">
+                      <div className="font-serif font-bold text-sm text-plum-royal group-hover:text-plum-dark leading-tight line-clamp-2">
+                        {item.name}
+                      </div>
+                      {item.hindiName && (
+                        <div className="text-[11px] font-hindi text-body-muted mt-0.5 line-clamp-1">
+                          {item.hindiName}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bottom Row: Price & Add Feedback */}
+                    <div className="pt-2 border-t border-lavender-100 flex items-center justify-between">
+                      <span className="font-mono font-bold text-xs text-plum-royal">
+                        {formatINR(item.price)}
+                      </span>
+                      {isAvailable && (
+                        <span className="w-6 h-6 rounded-lg bg-lavender-100 group-hover:bg-plum-royal group-hover:text-ivory text-plum-royal flex items-center justify-center transition-colors">
+                          <Plus className="w-3.5 h-3.5" />
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* ==================================================================== */}
+      {/* RIGHT COLUMN: Active Cart, Order Type, Financials, Settle Action */}
+      {/* ==================================================================== */}
+      <div className="w-full lg:w-[390px] xl:w-[420px] bg-white border border-lavender-200 rounded-2xl shadow-soft flex flex-col justify-between shrink-0 overflow-hidden">
+        {/* Cart Top Section: Order Header & Controls */}
+        <div className="p-3.5 border-b border-lavender-200 bg-lavender-50/50 space-y-3 shrink-0">
+          {/* Header Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-plum-royal text-gold flex items-center justify-center">
+                <ShoppingCart className="w-4 h-4" />
+              </div>
+              <h2 className="font-serif font-bold text-base text-plum-royal">
+                Active Order
+              </h2>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-lavender-200 text-plum-royal">
+                {financialTotals.totalItemUnits} {financialTotals.totalItemUnits === 1 ? 'item' : 'items'}
+              </span>
+              {cart.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsClearModalOpen(true)}
+                  className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 p-1 rounded-lg transition-colors"
+                  title="Clear Cart (Alt + C)"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Order Type Toggle: DINE_IN vs TAKEAWAY */}
+          <div className="grid grid-cols-2 gap-1.5 bg-lavender-100 p-1 rounded-xl border border-lavender-200 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setOrderType('DINE_IN')}
+              className={`inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-all ${
+                orderType === 'DINE_IN'
+                  ? 'bg-plum-royal text-ivory shadow-xs'
+                  : 'text-body-muted hover:text-plum-royal'
+              }`}
+            >
+              <Utensils className="w-3.5 h-3.5 text-gold" />
+              <span>Dine-In</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOrderType('TAKEAWAY')}
+              className={`inline-flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition-all ${
+                orderType === 'TAKEAWAY'
+                  ? 'bg-plum-royal text-ivory shadow-xs'
+                  : 'text-body-muted hover:text-plum-royal'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-gold" />
+              <span>Takeaway (Parcel)</span>
+            </button>
+          </div>
+
+          {/* Cabin / Table Input (Shown when DINE_IN) */}
+          {orderType === 'DINE_IN' && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-body-muted whitespace-nowrap">
+                Table / Cabin:
+              </span>
+              <input
+                type="text"
+                value={cabinTableRef}
+                onChange={(e) => setCabinTableRef(e.target.value)}
+                placeholder="e.g. Table 4 / Cabin B"
+                className="flex-1 bg-white border border-lavender-200 focus:border-plum-royal focus:ring-1 focus:ring-plum-royal rounded-lg px-2.5 py-1 text-xs text-body placeholder-body-muted/60"
+              />
+            </div>
+          )}
+
+          {/* Customer Details Row (Optional) */}
+          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-lavender-200/60">
+            <div className="relative">
+              <Phone className="w-3 h-3 text-body-muted absolute left-2 top-2" />
+              <input
+                type="tel"
+                value={customerPhone}
+                onChange={handlePhoneChange}
+                maxLength={10}
+                placeholder="Customer Phone"
+                className="w-full bg-white border border-lavender-200 focus:border-plum-royal rounded-lg pl-7 pr-2 py-1 text-xs text-body placeholder-body-muted/60 font-mono"
+              />
+            </div>
+            <div className="relative">
+              <User className="w-3 h-3 text-body-muted absolute left-2 top-2" />
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Customer Name"
+                className="w-full bg-white border border-lavender-200 focus:border-plum-royal rounded-lg pl-7 pr-2 py-1 text-xs text-body placeholder-body-muted/60"
+              />
+            </div>
+          </div>
+          {customerFound && (
+            <div className="text-[10px] text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 flex items-center justify-between">
+              <span>Loyal Customer: <strong>{customerFound.name}</strong></span>
+              {customerFound.totalVisits && <span>{customerFound.totalVisits} visits</span>}
+            </div>
+          )}
+        </div>
+
+        {/* Cart Items Scrollable List */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-ivory-50/20">
+          {cart.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center p-6 text-center text-body-muted">
+              <div className="w-12 h-12 rounded-2xl bg-lavender-100 flex items-center justify-center text-plum-royal mb-2">
+                <ShoppingCart className="w-6 h-6" />
+              </div>
+              <div className="font-serif font-bold text-sm text-plum-royal">
+                Cart is Empty
+              </div>
+              <p className="text-[11px] text-body-muted mt-1 max-w-[200px]">
+                Click dishes from catalog or press <kbd className="bg-lavender-200 px-1 py-0.5 rounded font-mono text-[10px]">/</kbd> to search.
+              </p>
+              <div className="mt-4 p-2.5 rounded-xl bg-lavender-50 border border-lavender-200 text-[10px] text-left space-y-1 w-full max-w-[240px]">
+                <div className="font-semibold text-plum-royal">Quick Keys:</div>
+                <div className="flex justify-between"><span>Focus Search:</span> <kbd className="font-mono font-bold">/</kbd></div>
+                <div className="flex justify-between"><span>Qty Up / Down:</span> <kbd className="font-mono font-bold">+ / -</kbd></div>
+                <div className="flex justify-between"><span>Clear Cart:</span> <kbd className="font-mono font-bold">Alt + C</kbd></div>
+                <div className="flex justify-between"><span>Preview Receipt:</span> <kbd className="font-mono font-bold">Alt + P</kbd></div>
+              </div>
+            </div>
+          ) : (
+            cart.map((item) => {
+              const isSelected = selectedCartItemId === item.id;
+              const itemTotal = (Math.round(item.price * 100) * item.quantity) / 100;
+              const isEditingNotes = editingNotesItemId === item.id;
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedCartItemId(item.id)}
+                  className={`p-2.5 rounded-xl border transition-all text-xs cursor-pointer ${
+                    isSelected
+                      ? 'bg-plum-50/70 border-plum-royal ring-1 ring-plum-royal shadow-xs'
+                      : 'bg-white border-lavender-200 hover:border-gold/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`w-3 h-3 rounded-xs border flex items-center justify-center shrink-0 ${
+                            item.veg ? 'border-emerald-600 bg-white' : 'border-red-600 bg-white'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              item.veg ? 'bg-emerald-600' : 'bg-red-600'
+                            }`}
+                          />
+                        </span>
+                        <span className="font-bold text-plum-royal truncate">
+                          {item.name}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-body-muted pl-4">
+                        {formatINR(item.price)} each
+                      </div>
+                    </div>
+
+                    {/* Quantity Adjustment Controls */}
+                    <div className="flex items-center gap-1 shrink-0 bg-lavender-100 rounded-lg p-0.5 border border-lavender-200" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateQuantity(item.id, -1)}
+                        className="w-6 h-6 rounded flex items-center justify-center text-plum-royal hover:bg-white transition-colors"
+                        title="Decrease (-)"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-6 text-center font-mono font-bold text-xs text-plum-royal">
+                        {item.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateQuantity(item.id, 1)}
+                        className="w-6 h-6 rounded flex items-center justify-center text-plum-royal hover:bg-white transition-colors"
+                        title="Increase (+)"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    {/* Line Item Total */}
+                    <div className="text-right font-mono font-bold text-plum-royal shrink-0 w-16">
+                      {formatINR(itemTotal)}
+                    </div>
+
+                    {/* Remove Action */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveFromCart(item.id);
+                      }}
+                      className="text-body-muted hover:text-red-600 p-1 transition-colors"
+                      title="Remove Item"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Kitchen Notes Toggle / Input */}
+                  <div className="mt-1.5 pl-4 pt-1 border-t border-lavender-100/60" onClick={(e) => e.stopPropagation()}>
+                    {isEditingNotes ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={item.notes || ''}
+                          onChange={(e) => handleUpdateNotes(item.id, e.target.value)}
+                          placeholder="Kitchen note (e.g. less spicy)..."
+                          className="flex-1 bg-white border border-lavender-200 rounded px-2 py-0.5 text-[11px] text-body"
+                          autoFocus
+                          onBlur={() => setEditingNotesItemId(null)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') setEditingNotesItemId(null);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEditingNotesItemId(null)}
+                          className="p-1 text-emerald-600 hover:text-emerald-700"
+                        >
+                          <Check className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditingNotesItemId(item.id)}
+                        className="text-[10px] text-body-muted hover:text-plum-royal flex items-center gap-1"
+                      >
+                        <Edit3 className="w-2.5 h-2.5 text-gold" />
+                        <span>{item.notes ? `Note: ${item.notes}` : '+ Add note'}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Financial Summary & Bottom Settlement Action */}
+        <div className="p-3.5 border-t border-lavender-200 bg-lavender-50/60 space-y-2.5 shrink-0">
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between text-body-muted">
+              <span>Subtotal ({financialTotals.totalItemUnits} items)</span>
+              <span className="font-mono font-semibold text-body">
+                {formatINR(financialTotals.subtotal)}
+              </span>
+            </div>
+            <div className="flex justify-between text-body-muted">
+              <span className="flex items-center gap-1">
+                <span>Tax</span>
+                <span className="text-[10px] px-1 rounded bg-lavender-200 text-plum-royal font-medium">
+                  GST Disabled (Tax-Exempt)
+                </span>
+              </span>
+              <span className="font-mono text-emerald-600 font-semibold">₹0.00</span>
+            </div>
+            <div className="flex justify-between text-body-muted">
+              <span>Discount</span>
+              <span className="font-mono text-body">₹0.00</span>
+            </div>
+            <div className="flex justify-between items-baseline pt-2 border-t border-lavender-200 text-plum-royal">
+              <span className="font-serif font-bold text-base">Payable Total</span>
+              <span className="font-mono font-bold text-xl text-plum-royal">
+                {formatINR(financialTotals.payableTotal)}
+              </span>
+            </div>
+          </div>
+
+          {/* Action Buttons: Preview Receipt & Settle Bill */}
+          <div className="space-y-2 pt-1">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setIsReceiptModalOpen(true)}
+                className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-lavender-100 hover:bg-lavender-200 text-plum-royal font-semibold border border-lavender-200 transition-colors shadow-xs"
+                title="Preview ESC/POS Thermal Receipt (Alt + P)"
+              >
+                <Printer className="w-3.5 h-3.5 text-gold" />
+                <span>Preview Receipt</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsShortcutsModalOpen(true)}
+                className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-lavender-100 hover:bg-lavender-200 text-plum-royal font-semibold border border-lavender-200 transition-colors shadow-xs"
+                title="View Hotkeys (?)"
+              >
+                <Info className="w-3.5 h-3.5 text-gold" />
+                <span>Shortcuts (?)</span>
+              </button>
+            </div>
+
+            {/* Settle & Finalize Bill Button (Phase 5.2 Placeholder) */}
+            <div className="relative group">
+              <button
+                type="button"
+                disabled
+                className="w-full py-2.5 px-4 rounded-xl bg-plum-royal/40 text-ivory/60 font-serif font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed shadow-none border border-plum-900/10"
+              >
+                <CreditCard className="w-4 h-4 text-gold/50" />
+                <span>Proceed to Settle & Bill (Phase 5.2)</span>
+              </button>
+
+              {/* Informative Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-72 p-2 rounded-xl bg-plum-dark text-ivory text-[11px] leading-relaxed text-center shadow-luxury z-30 pointer-events-none">
+                Settlement, payment processing (Cash/UPI), and authoritative sequence bill creation will be fully enabled in Phase 5.2.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* MODALS */}
+      {/* ==================================================================== */}
+
+      {/* 1. Clear Cart Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isClearModalOpen}
+        onClose={() => setIsClearModalOpen(false)}
+        onConfirm={handleClearCart}
+        title="Clear Current Order Cart?"
+        message={`Are you sure you want to discard all ${financialTotals.totalItemUnits} items currently in the cart? This cannot be undone.`}
+        confirmText="Clear Cart"
+        cancelText="Keep Items"
+        confirmVariant="danger"
+      />
+
+      {/* 2. ESC/POS Thermal Receipt Preview Modal (Phase 5.3 Ready) */}
+      <PosReceiptPreviewModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        cart={cart}
+        orderType={orderType}
+        tableRef={cabinTableRef}
+        customerName={customerName}
+        customerPhone={customerPhone}
+        cashierName={user?.fullName || user?.username || 'Counter Operator'}
+        subtotal={financialTotals.subtotal}
+        tax={financialTotals.tax}
+        discount={financialTotals.discount}
+        payableTotal={financialTotals.payableTotal}
+      />
+
+      {/* 3. Keyboard Shortcuts Reference Modal */}
+      <PosShortcutsModal
+        isOpen={isShortcutsModalOpen}
+        onClose={() => setIsShortcutsModalOpen(false)}
+      />
     </div>
   );
 }
