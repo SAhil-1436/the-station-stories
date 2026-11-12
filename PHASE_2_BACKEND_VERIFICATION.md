@@ -17,7 +17,7 @@ Phase 2 backend implementation for **The Station Stories** was subjected to an e
 ### Final Verdict: **PASS**
 - **100% of Automated Tests Passed**: All 24 unit and Spring context integration tests executed cleanly with 0 failures and 0 errors (`Total time: 3.911s`).
 - **Database & Migration Integrity**: All 3 Flyway migrations (`V1`, `V2`, `V3`) verified in MySQL 9.5.0; Hibernate DDL validation (`ddl-auto: validate`) succeeded with 0 schema discrepancies.
-- **29 Production REST Endpoints Verified**: Across 5 controllers (`HealthController`, `AuthController`, `PublicController`, `PosController`, `AdminController`) plus 2 OpenAPI/Swagger documentation endpoints (`/api-docs`, `/swagger-ui.html`).
+- **37 Controller Handler Mappings Verified**: Across 5 Spring Boot controllers (`HealthController`: 1, `AuthController`: 4, `PublicController`: 6, `PosController`: 9, `AdminController`: 17) plus 2 Swagger/OpenAPI documentation routes (`/api-docs`, `/swagger-ui.html`).
 - **Security & RBAC Fully Enforced**: BCrypt password hashing (strength 12), stateless JWT tokens (HMAC-SHA512 with 8h validity), in-memory IP rate limiting (5 attempts/minute before HTTP 429), and strict role segregation (`ROLE_ADMIN` vs `ROLE_CASHIER`).
 - **Minimal Bug Remediations Applied**: Corrected a Jackson JSR310 `Instant` serialization bug in `JwtAuthenticationEntryPoint` and implemented `JwtAccessDeniedHandler` to ensure all 401/403 responses deliver clean JSON payloads instead of container error pages.
 - **Frontend Compatibility**: Verified complete 1:1 alignment between React frontend API client (`frontend/src/services/api.js`) and backend controller endpoints, data structures, and CORS configuration.
@@ -129,76 +129,83 @@ Flyway schema history query confirmed:
 
 ---
 
-## 5. Complete API Endpoint Inventory & Live Test Verification
+## 5. Complete API Endpoint Inventory & Handler Mappings
 
-The application exposes **29 REST endpoints** across 5 controllers:
+Source inspection of the 5 Spring Boot `@RestController` classes confirms exactly **37 controller handler mappings**, organized by controller:
 
-### 5.1 System Health & Diagnostics (`HealthController`)
-| Method | Path | Security | Verified Status | Evidence / Notes |
+| Controller | Handler Mappings | Route Scope |
+|---|:---:|---|
+| [`HealthController`](file:///Users/sahil/Documents/Station_Stories/backend/src/main/java/com/stationstories/controller/HealthController.java) | **1** | System liveness & database connectivity diagnostic |
+| [`AuthController`](file:///Users/sahil/Documents/Station_Stories/backend/src/main/java/com/stationstories/controller/AuthController.java) | **4** | Login, profile retrieval, admin setup, logout |
+| [`PublicController`](file:///Users/sahil/Documents/Station_Stories/backend/src/main/java/com/stationstories/controller/PublicController.java) | **6** | Public restaurant info, categories, menu, single dish, gallery, digital invoice |
+| [`PosController`](file:///Users/sahil/Documents/Station_Stories/backend/src/main/java/com/stationstories/controller/PosController.java) | **9** | Customer lookup/CRUD/history (5) + POS billing/receipt/WhatsApp status (4) |
+| [`AdminController`](file:///Users/sahil/Documents/Station_Stories/backend/src/main/java/com/stationstories/controller/AdminController.java) | **17** | Staff, category CRUD, menu CRUD/price/photo/86, bills search/cancel, reports, settings, audit |
+| **Total Controller Mappings** | **37** | **Application Business & Management Logic** |
+
+*(In addition, 2 framework documentation routes are exposed by `springdoc-openapi`: `GET /api-docs` and `GET /swagger-ui/index.html`.)*
+
+### 5.1 System Health & Diagnostics (`HealthController` – 1 Mapping)
+| # | Method | Path | Security | Verified Status | Evidence / Notes |
+|:---:|---|---|:---:|:---:|---|
+| 1 | `GET` | `/api/health` | Public | **200 OK** | Diagnostic report (`status: UP`, `javaVersion: 26.0.1`, `databaseVersion: 9.5.0`, `databaseStatus: CONNECTED`). Also supports `HEAD` requests. |
+
+### 5.2 Authentication & User Profiles (`AuthController` – 4 Mappings)
+| # | Method | Path | Security | Verified Status | Evidence / Notes |
+|:---:|---|---|:---:|:---:|---|
+| 2 | `POST` | `/api/v1/auth/login` | Public | **200 OK** | Issues 8-hour JWT token (`expiresIn: 28800`). Test scenarios verified: `401 Unauthorized` on bad password; `429 Too Many Requests` on 6th failed attempt within 60s rate limit window. |
+| 3 | `GET` | `/api/v1/auth/me` | Authenticated | **200 OK** | Returns current user details and role authorities from JWT session. |
+| 4 | `POST` | `/api/v1/auth/setup-admin` | Public / Token | **403 Forbidden** | Initial admin setup endpoint. Verified permanently disabled with `403 Forbidden` once an administrator exists. |
+| 5 | `POST` | `/api/v1/auth/logout` | Authenticated | **200 OK** | Acknowledges token discard and session termination. |
+
+### 5.3 Public Customer-Facing APIs (`PublicController` – 6 Mappings)
+| # | Method | Path | Security | Verified Status | Evidence / Notes |
+|:---:|---|---|:---:|:---:|---|
+| 6 | `GET` | `/api/v1/public/restaurant-info` | Public | **200 OK** | Returns verified brand details, address, opening hours, tax status. |
+| 7 | `GET` | `/api/v1/public/categories` | Public | **200 OK** | Returns 5 active menu categories with accurate item counts. |
+| 8 | `GET` | `/api/v1/public/menu` | Public | **200 OK** | Returns 20 menu items; verified filtering with `categoryId`, `isVeg`, and `search`. |
+| 9 | `GET` | `/api/v1/public/menu/{id}` | Public | **200 OK** | Full dish details by ID; returns 404 for invalid ID. |
+| 10 | `GET` | `/api/v1/public/gallery` | Public | **200 OK** | Returns all 13 authentic restaurant photographs. |
+| 11 | `GET` | `/api/v1/public/bill/view/{uuid}` | Public | **200 OK** | Public read-only digital receipt via cryptographically secure UUID; returns 404 for missing UUID. |
+
+### 5.4 POS Cashier Terminal APIs (`PosController` – 9 Mappings)
+| # | Method | Path | Security | Verified Status | Evidence / Notes |
+|:---:|---|---|:---:|:---:|---|
+| 12 | `GET` | `/api/v1/pos/customers/lookup` | Cashier / Admin | **200 OK** | Normalizes phone number, retrieves customer loyalty visit count & lifetime spend. |
+| 13 | `POST` | `/api/v1/pos/customers` | Cashier / Admin | **201 Created** | Registers new customer with 10-digit phone normalization. |
+| 14 | `GET` | `/api/v1/pos/customers/{id}` | Cashier / Admin | **200 OK** | Retrieves customer profile by ID. |
+| 15 | `PUT` | `/api/v1/pos/customers/{id}` | Cashier / Admin | **200 OK** | Updates customer profile details. |
+| 16 | `GET` | `/api/v1/pos/customers/{id}/purchase-history` | Cashier / Admin | **200 OK** | Lists historical invoices for a customer. |
+| 17 | `POST` | `/api/v1/pos/bills` | Cashier / Admin | **201 Created** | Generates atomic bill `TSS-YYYYMMDD-XXXX`, freezes snapshots, creates initial payment. |
+| 18 | `GET` | `/api/v1/pos/bills/{id}` | Cashier / Admin | **200 OK** | Retrieves full bill details by ID. |
+| 19 | `GET` | `/api/v1/pos/bills/{id}/receipt` | Cashier / Admin | **200 OK** | Formats thermal receipt payload with dynamic UPI QR string. Verified with both `?width=80mm` and `?width=58mm`. |
+| 20 | `PATCH` | `/api/v1/pos/bills/{id}/whatsapp-status` | Cashier / Admin | **200 OK** | Updates delivery state machine (`MANUALLY_SENT`, `DELIVERY_CONFIRMED`). |
+
+### 5.5 Administrator Management APIs (`AdminController` – 17 Mappings)
+| # | Method | Path | Security | Verified Status | Evidence / Notes |
+|:---:|---|---|:---:|:---:|---|
+| 21 | `POST` | `/api/v1/admin/users/staff` | Admin Only | **201 Created** | Provisions staff accounts; enforces mandatory company card verification number. |
+| 22 | `GET` | `/api/v1/admin/categories` | Admin Only | **200 OK** | Returns full category catalog including inactive items with dish counts. |
+| 23 | `POST` | `/api/v1/admin/categories` | Admin Only | **201 Created** | Creates new menu category. |
+| 24 | `PUT` | `/api/v1/admin/categories/{id}` | Admin Only | **200 OK** | Updates menu category details. |
+| 25 | `DELETE` | `/api/v1/admin/categories/{id}` | Admin Only | **400 / 200** | Blocks deletion if active dishes exist (`400 Bad Request`); deletes safely if empty (`200 OK`). |
+| 26 | `GET` | `/api/v1/admin/menu` | Admin Only | **200 OK** | Returns complete dish catalog including unavailable items. |
+| 27 | `POST` | `/api/v1/admin/menu` | Admin Only | **201 Created** | Adds new dish to catalog. |
+| 28 | `PUT` | `/api/v1/admin/menu/{id}` | Admin Only | **200 OK** | Updates dish metadata without affecting past bill snapshots. |
+| 29 | `PATCH` | `/api/v1/admin/menu/{id}/price` | Admin Only | **200 OK** | Updates dish price and logs audit event. |
+| 30 | `PATCH` | `/api/v1/admin/menu/{id}/toggle-availability` | Admin Only | **200 OK** | Toggles dish availability (86 switch); billing unavailable dishes is strictly blocked. |
+| 31 | `POST` | `/api/v1/admin/menu/{id}/photo` | Admin Only | **200 OK** | Uploads multipart dish photograph and updates `imageUrl`. |
+| 32 | `GET` | `/api/v1/admin/bills` | Admin Only | **200 OK** | Paginated bill search filtered by payment status, method, date range. |
+| 33 | `POST` | `/api/v1/admin/bills/{id}/cancel` | Admin Only | **200 OK** | Non-destructive soft cancellation with reason and refund amount. |
+| 34 | `GET` | `/api/v1/admin/reports/dashboard` | Admin Only | **200 OK** | Aggregates today's sales, cash vs UPI breakdown, top bestsellers. |
+| 35 | `GET` | `/api/v1/admin/settings` | Admin Only | **200 OK** | Retrieves singleton restaurant settings and GST configuration. |
+| 36 | `PUT` | `/api/v1/admin/settings` | Admin Only | **200 OK** | Updates brand settings and dynamic GST toggle. |
+| 37 | `GET` | `/api/v1/admin/audit-logs` | Admin Only | **200 OK** | Paginated compliance audit log events. |
+
+### 5.6 Framework Documentation Routes (Swagger / OpenAPI – 2 Routes)
+| Method | Path | Security | Verified Status | Type / Notes |
 |---|---|:---:|:---:|---|
-| `GET` | `/api/health` | Public | **200 OK** | Returns `{"status":"UP","javaVersion":"26.0.1","databaseVersion":"9.5.0","databaseStatus":"CONNECTED"}` |
-| `HEAD` | `/api/health` | Public | **200 OK** | Verified after security configuration adjustment |
-
-### 5.2 Authentication & User Profiles (`AuthController`)
-| Method | Path | Security | Verified Status | Evidence / Notes |
-|---|---|:---:|:---:|---|
-| `POST` | `/api/v1/auth/login` | Public | **200 OK** | Issues 8-hour JWT token (`expiresIn: 28800`) with user profile |
-| `POST` | `/api/v1/auth/login` (bad pass) | Public | **401 Unauthorized** | Returns `AUTHENTICATION_FAILED` error code |
-| `POST` | `/api/v1/auth/login` (brute force) | Public | **429 Too Many Requests** | Returns HTTP 429 after 5 failed attempts within 60s |
-| `GET` | `/api/v1/auth/me` | Authenticated | **200 OK** | Returns current user details and role authorities |
-| `POST` | `/api/v1/auth/setup-admin` | Public / Token | **403 Forbidden** | Returns error: setup endpoint permanently disabled once an admin exists |
-| `POST` | `/api/v1/auth/logout` | Authenticated | **200 OK** | Acknowledges token discard and session termination |
-
-### 5.3 Public Customer-Facing APIs (`PublicController`)
-| Method | Path | Security | Verified Status | Evidence / Notes |
-|---|---|:---:|:---:|---|
-| `GET` | `/api/v1/public/restaurant-info` | Public | **200 OK** | Returns brand name, address, operating hours, tax status |
-| `GET` | `/api/v1/public/categories` | Public | **200 OK** | Returns 5 active menu categories with accurate item counts |
-| `GET` | `/api/v1/public/menu` | Public | **200 OK** | Returns 20 menu items; supports `categoryId`, `isVeg`, `search` |
-| `GET` | `/api/v1/public/menu/{id}` | Public | **200 OK** | Full dish details by ID; returns 404 for invalid ID |
-| `GET` | `/api/v1/public/gallery` | Public | **200 OK** | Returns 13 authentic restaurant photographs |
-| `GET` | `/api/v1/public/bill/view/{uuid}` | Public | **200 OK** | Public read-only digital receipt; returns 404 for missing UUID |
-
-### 5.4 POS Cashier Terminal APIs (`PosController`)
-| Method | Path | Security | Verified Status | Evidence / Notes |
-|---|---|:---:|:---:|---|
-| `GET` | `/api/v1/pos/customers/lookup` | Cashier / Admin | **200 OK** | Normalizes phone number, retrieves customer loyalty visit count & spend |
-| `POST` | `/api/v1/pos/customers` | Cashier / Admin | **201 Created** | Registers new customer with 10-digit phone normalization |
-| `GET` | `/api/v1/pos/customers/{id}` | Cashier / Admin | **200 OK** | Retrieves customer profile by ID |
-| `PUT` | `/api/v1/pos/customers/{id}` | Cashier / Admin | **200 OK** | Updates customer profile details |
-| `GET` | `/api/v1/pos/customers/{id}/purchase-history` | Cashier / Admin | **200 OK** | Lists historical invoices for a customer |
-| `POST` | `/api/v1/pos/bills` | Cashier / Admin | **201 Created** | Generates atomic bill `TSS-YYYYMMDD-XXXX`, freezes snapshots, creates payment |
-| `GET` | `/api/v1/pos/bills/{id}` | Cashier / Admin | **200 OK** | Retrieves full bill details by ID |
-| `GET` | `/api/v1/pos/bills/{id}/receipt?width=80mm` | Cashier / Admin | **200 OK** | Formats 80mm receipt with dynamic UPI QR string |
-| `GET` | `/api/v1/pos/bills/{id}/receipt?width=58mm` | Cashier / Admin | **200 OK** | Formats 58mm compact receipt payload |
-| `PATCH` | `/api/v1/pos/bills/{id}/whatsapp-status` | Cashier / Admin | **200 OK** | Updates delivery state machine (`MANUALLY_SENT`, `DELIVERY_CONFIRMED`) |
-
-### 5.5 Administrator Management APIs (`AdminController`)
-| Method | Path | Security | Verified Status | Evidence / Notes |
-|---|---|:---:|:---:|---|
-| `POST` | `/api/v1/admin/users/staff` | Admin Only | **201 Created** | Provisions staff accounts; enforces mandatory company card number |
-| `GET` | `/api/v1/admin/categories` | Admin Only | **200 OK** | Returns full category catalog with dish counts |
-| `POST` | `/api/v1/admin/categories` | Admin Only | **201 Created** | Creates new menu category |
-| `PUT` | `/api/v1/admin/categories/{id}` | Admin Only | **200 OK** | Updates menu category details |
-| `DELETE` | `/api/v1/admin/categories/{id}` | Admin Only | **400 / 200** | Blocks deletion if active dishes exist; deletes safely if empty |
-| `GET` | `/api/v1/admin/menu` | Admin Only | **200 OK** | Returns complete dish catalog including unavailable items |
-| `POST` | `/api/v1/admin/menu` | Admin Only | **201 Created** | Adds new dish to catalog |
-| `PUT` | `/api/v1/admin/menu/{id}` | Admin Only | **200 OK** | Updates dish metadata without affecting past bill snapshots |
-| `PATCH` | `/api/v1/admin/menu/{id}/price` | Admin Only | **200 OK** | Updates dish price and logs audit event |
-| `PATCH` | `/api/v1/admin/menu/{id}/toggle-availability` | Admin Only | **200 OK** | Toggles dish availability; blocks billing of unavailable items |
-| `POST` | `/api/v1/admin/menu/{id}/photo` | Admin Only | **200 OK** | Uploads multipart dish photograph and updates `imageUrl` |
-| `GET` | `/api/v1/admin/bills` | Admin Only | **200 OK** | Paginated bill search filtered by payment status, method, date range |
-| `POST` | `/api/v1/admin/bills/{id}/cancel` | Admin Only | **200 OK** | Non-destructive soft cancellation with reason and refund amount |
-| `GET` | `/api/v1/admin/reports/dashboard` | Admin Only | **200 OK** | Aggregates today's sales, cash vs UPI breakdown, top bestsellers |
-| `GET` | `/api/v1/admin/settings` | Admin Only | **200 OK** | Retrieves singleton restaurant settings and GST configuration |
-| `PUT` | `/api/v1/admin/settings` | Admin Only | **200 OK** | Updates brand settings and dynamic GST toggle |
-| `GET` | `/api/v1/admin/audit-logs` | Admin Only | **200 OK** | Paginated compliance audit log events |
-
-### 5.6 Interactive Documentation Endpoints
-| Method | Path | Security | Verified Status |
-|---|---|:---:|:---:|
-| `GET` | `/api-docs` | Public | **200 OK** (Full OpenAPI 3.0 specification) |
-| `GET` | `/swagger-ui/index.html` | Public | **200 OK** (Interactive Swagger UI console) |
+| `GET` | `/api-docs` | Public | **200 OK** | OpenAPI 3.0 specification generated by `springdoc-openapi` |
+| `GET` | `/swagger-ui/index.html` | Public | **200 OK** | Interactive Swagger UI console generated by `springdoc-openapi` |
 
 ---
 
