@@ -1,6 +1,7 @@
 # The Station Stories – Restaurant Management Platform
 
 > **Official Restaurant Platform**: The Station Stories  
+> **Repository**: [https://github.com/SAhil-1436/the-station-stories](https://github.com/SAhil-1436/the-station-stories)  
 > **Architecture**: Modular Monolith (Spring Boot 3.3.x REST API + React 18 Vite Single Page Application)  
 > **Database**: MySQL 8 (`the_station_stories`) managed via Flyway migrations
 
