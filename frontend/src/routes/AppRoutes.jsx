@@ -17,9 +17,18 @@ import PublicInvoicePage from '../pages/customer/PublicInvoicePage';
 
 import ProtectedRoute from './ProtectedRoute';
 
-// Admin & POS Placeholders (Separate from Phase 3 Customer Application)
+// Admin Pages
 import AdminLoginPage from '../pages/admin/AdminLoginPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
+import MenuManagementPage from '../pages/admin/MenuManagementPage';
+import CategoryManagementPage from '../pages/admin/CategoryManagementPage';
+import BillsManagementPage from '../pages/admin/BillsManagementPage';
+import StaffManagementPage from '../pages/admin/StaffManagementPage';
+import ReportsPage from '../pages/admin/ReportsPage';
+import SettingsPage from '../pages/admin/SettingsPage';
+import AuditLogsPage from '../pages/admin/AuditLogsPage';
+
+// POS Placeholder
 import PosPage from '../pages/pos/PosPage';
 
 export default function AppRoutes() {
@@ -41,8 +50,10 @@ export default function AppRoutes() {
         <Route index element={<PosPage />} />
       </Route>
 
-      {/* Admin Management Routes (Protected with ROLE_ADMIN) */}
+      {/* Admin Public Route (Login) */}
       <Route path="/admin/login" element={<AdminLoginPage />} />
+
+      {/* Admin Management Routes (Protected with ROLE_ADMIN) */}
       <Route
         path="/admin"
         element={
@@ -52,6 +63,13 @@ export default function AppRoutes() {
         }
       >
         <Route index element={<AdminDashboardPage />} />
+        <Route path="menu" element={<MenuManagementPage />} />
+        <Route path="categories" element={<CategoryManagementPage />} />
+        <Route path="bills" element={<BillsManagementPage />} />
+        <Route path="staff" element={<StaffManagementPage />} />
+        <Route path="reports" element={<ReportsPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="audit-logs" element={<AuditLogsPage />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
 
