@@ -118,7 +118,7 @@ The counter setup consists of a laptop running the POS web application connected
      --------------------------------
      Bill No: TSS-20261112-0001
      Date: 12-Nov-2026 01:45 PM
-     Customer: Sahil Kumar
+     Customer: Rahul Sharma
 
      Items:
      1. Station Veg Burger x 2 = ₹178.00

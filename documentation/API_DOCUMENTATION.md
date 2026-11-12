@@ -230,7 +230,7 @@ Instant 10-digit customer lookup for returning customer identification.
   "data": {
     "id": 45,
     "phone": "9876543210",
-    "name": "Sahil Kumar",
+    "name": "Rahul Sharma",
     "visitCount": 5,
     "totalSpent": 2450.00,
     "lastVisitAt": "2026-11-10T19:30:00Z"
@@ -247,7 +247,7 @@ Authoritative bill creation with thread-safe sequence generation, transaction sa
   "orderType": "DINE_IN",
   "cabinTableRef": "Cabin 1",
   "customerPhone": "9876543210",
-  "customerName": "Sahil Kumar",
+  "customerName": "Rahul Sharma",
   "paymentMethod": "UPI",
   "discountType": "FLAT",
   "discountValue": 20.00,

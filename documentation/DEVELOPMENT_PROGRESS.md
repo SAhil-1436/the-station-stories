@@ -266,10 +266,24 @@
   - `GET /images/branding/station-stories-signage.jpeg` -> `200 OK`
   - `GET /images/food/biryani.webp` -> `200 OK`
 
+### 6. Known Issues, Limitations & Pre-Launch Notices
+1. **Representative Food Photography**: Dishes in the digital menu and QR menu currently display representative imagery with prominent `[Representative Image]` badges. Genuine high-resolution dish photography from the restaurant kitchen will replace them upon receipt from the owner.
+2. **Pending Business Details**: Contact telephone number, GSTIN, and physical street address are populated with structured placeholders (`[Pending Owner Confirmation]`) in `restaurantData.js` until confirmed by management.
+3. **QR Menu Ordering Scope**: The QR Menu (`/qr-menu`) provides touch-first dish discovery and server/captain calling functionality. Online ordering, cart checkout, and digital payment gateways are deliberately withheld in accordance with the offline-first, cashier-assisted POS architecture (Phase 4).
+4. **Thermal Printing Mechanism**: Public bill invoices (`/bill/view/:uuid`) leverage browser-based `@media print` layout formatting. Raw direct USB ESC/POS binary printing is architected for Phase 4 POS deployment.
+
+### 7. External Code & Design Review Visuals
+Desktop and mobile high-resolution captures have been generated and archived in `documentation/screenshots/`:
+- `desktop-homepage.png` (1440 × 1080) / `mobile-homepage.png` (390 × 844)
+- `desktop-menu.png` (1440 × 1080) / `mobile-menu.png` (390 × 844)
+- `desktop-gallery.png` (1440 × 1080) / `mobile-gallery.png` (390 × 844)
+- `desktop-qrmenu.png` (1440 × 1080) / `mobile-qrmenu.png` (390 × 844)
+
 ---
 
 ## Current Status & Next Phase
 - **Phase 3 Status**: ✅ **100% Complete & Verified**.
+- **External Review Readiness**: ✅ **Security audit clean, gitignore verified, zero sensitive credentials committed, visual screenshots generated**.
 - **Rule**: STRICTLY STOP after Phase 3. Postponed features (Phase 4 POS, Phase 5 Admin Dashboard, Billing backend modifications) are NOT started.
 - Awaiting explicit owner review and sign-off before proceeding to any future phases.
 

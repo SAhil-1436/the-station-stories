@@ -49,3 +49,28 @@ pnpm-debug.log*
 # Log files
 logs/
 *.log
+
+# Database Dumps, Backups & SQLite
+*.sql.dump
+*.dump
+*.dump.*
+*.rdb
+*.db
+*.sqlite
+*.sqlite3
+backup/
+backups/
+*.bak
+
+# Credentials, Keys, Certificates & Secrets
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cer
+*.jks
+id_rsa*
+id_ed25519*
+secrets/
+credentials/

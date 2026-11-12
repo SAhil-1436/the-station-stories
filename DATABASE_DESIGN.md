@@ -299,9 +299,9 @@ Singleton table holding verified restaurant parameters and flexible tax settings
 | `restaurant_name` | VARCHAR(150) | NOT NULL | 'THE STATION STORIES' | Official brand name |
 | `tagline` | VARCHAR(255) | NULL | 'Fast Food & Restaurant' | Brand subtitle |
 | `address` | TEXT | NOT NULL | '[Pending Owner Confirmation - Placeholder Address]' | Street address |
-| `phone_primary` | VARCHAR(20) | NOT NULL | '[Pending Owner Confirmation]' | Primary phone |
-| `phone_secondary` | VARCHAR(20) | NULL | NULL | Secondary contact |
-| `whatsapp_number` | VARCHAR(20) | NOT NULL | '[Pending Owner Confirmation]' | WhatsApp bill sender |
+| `phone_primary` | VARCHAR(50) | NOT NULL | '[Pending Owner Confirmation]' | Primary phone |
+| `phone_secondary` | VARCHAR(50) | NULL | NULL | Secondary contact |
+| `whatsapp_number` | VARCHAR(50) | NOT NULL | '[Pending Owner Confirmation]' | WhatsApp bill sender |
 | `email` | VARCHAR(120) | NULL | NULL | Inquiry email |
 | `gst_enabled` | BOOLEAN | NOT NULL | FALSE | **STRICTLY FALSE BY DEFAULT** |
 | `gstin` | VARCHAR(25) | NULL | NULL | GSTIN (NULL until verified) |
@@ -313,6 +313,21 @@ Singleton table holding verified restaurant parameters and flexible tax settings
 | `google_maps_url` | TEXT | NULL | NULL | Google Maps link |
 | `instagram_handle`| VARCHAR(100) | NULL | NULL | Instagram profile |
 | `updated_at` | TIMESTAMP | NOT NULL | CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | Settings update |
+
+---
+
+### Table: `payments`
+Tracks itemized payment transactions associated with bills (CASH, UPI, CARD, SPLIT).
+
+| Column | Type | Constraints | Default | Description |
+|---|---|---|---|---|
+| `id` | BIGINT | PRIMARY KEY, AUTO_INCREMENT | - | Payment transaction ID |
+| `bill_id` | BIGINT | NOT NULL, FK(`bills.id` ON DELETE RESTRICT) | - | Associated bill |
+| `payment_method` | VARCHAR(20) | NOT NULL | 'CASH' | `CASH`, `UPI`, `CARD`, `SPLIT` |
+| `amount` | DECIMAL(10,2) | NOT NULL | - | Paid amount in INR |
+| `transaction_ref` | VARCHAR(100) | NULL | NULL | UPI UTR / Bank reference number |
+| `status` | VARCHAR(20) | NOT NULL | 'SUCCESS' | `SUCCESS`, `REFUNDED`, `FAILED` |
+| `created_at` | TIMESTAMP | NOT NULL | CURRENT_TIMESTAMP | Transaction timestamp |
 
 ---
 
@@ -333,6 +348,9 @@ CREATE INDEX idx_bills_invoice_uuid ON bills(invoice_uuid);
 CREATE INDEX idx_bill_items_bill_id ON bill_items(bill_id);
 CREATE INDEX idx_bill_items_menu_item_id ON bill_items(menu_item_id);
 
+-- Payment transactions
+CREATE INDEX idx_payments_bill_id ON payments(bill_id);
+
 -- Menu and category navigation
 CREATE INDEX idx_menu_items_category_id ON menu_items(category_id);
 CREATE INDEX idx_menu_items_is_available ON menu_items(is_available);
@@ -348,12 +366,15 @@ CREATE INDEX idx_audit_logs_action ON audit_logs(action);
 ## 4. Flyway Database Migration Plan
 
 1. **`V1__init_schema.sql`**:
-   - Creates `users`, `categories`, `menu_items`, `customers`, `bill_number_sequences`, `bills`, `bill_items`, `audit_logs`, `restaurant_settings`, and `gallery_images`.
-   - Enforces `ON DELETE RESTRICT` on all financial relationships.
+   - Initial Phase 1 schema setup and baseline verification.
+2. **`V2__create_phase2_tables.sql`**:
+   - Creates `roles`, `users`, `user_roles`, `categories`, `menu_items`, `customers`, `bill_number_sequences`, `bills`, `bill_items`, `payments`, `audit_logs`, `restaurant_settings`, and `gallery_images`.
+   - Enforces `ON DELETE RESTRICT` on all financial relationships (`bills`, `bill_items`, `payments`).
    - Sets up performance indexes.
-2. **`V2__seed_initial_data.sql`**:
-   - Seeds default `restaurant_settings` with `restaurant_name = 'THE STATION STORIES'`, `gst_enabled = FALSE`, and clearly marked placeholders for unconfirmed fields.
+3. **`V3__seed_phase2_initial_data.sql`**:
+   - Seeds `ROLE_ADMIN` and `ROLE_CASHIER`.
+   - Seeds default `restaurant_settings` with `restaurant_name = 'THE STATION STORIES'`, `gst_enabled = FALSE`, and placeholders for unconfirmed fields.
    - Seeds menu categories (`Burgers & Sandwiches`, `Pizzas & Garlic Breads`, `Chinese & Fast Food`, `Beverages & Shakes`, `Chaat & Quick Bites`).
-   - Seeds temporary menu items referencing `frontend/public/images/food/` with `is_original_image = FALSE`.
-   - Seeds the 13 authentic photographs referencing `frontend/public/images/restaurant/` with `is_original = TRUE`.
-   - Seeds the initial `bill_number_sequences` tracker.
+   - Seeds initial menu items referencing `frontend/public/images/food/` with `is_original_image = FALSE`.
+   - Seeds the 13 authentic restaurant photographs referencing `frontend/public/images/restaurant/` with `is_original = TRUE`.
+   - Seeds the initial `bill_number_sequences` tracker for zero-gap daily serials.

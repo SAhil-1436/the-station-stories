@@ -60,18 +60,19 @@
 - **State Management**: React Context API + Custom Hooks (`AuthContext`, `CartContext`, `LanguageContext`).
 
 ### Backend
-- **Platform**: Java 21 (LTS release, virtual threads capability, record types, pattern matching).
-- **Framework**: Spring Boot 3.3.x (Spring Framework 6, Jakarta EE 10).
+- **Platform**: Java 21 bytecode release targeting, running on verified Java 26.0.1 runtime (macOS ARM64).
+- **Framework**: Spring Boot 3.3.5 (Spring Framework 6.1.14, Jakarta EE 10).
 - **Security**: Spring Security 6 + JJWT 0.12.x (Stateless Bearer JWT authentication, BCrypt password hashing).
-- **Rate Limiting**: Bucket4j in-memory token bucket filter on login endpoints.
-- **Persistence**: Spring Data JPA + Hibernate 6.x.
-- **Database Migrations**: Flyway (Immutable version-controlled schema scripts).
+- **Rate Limiting**: In-memory token bucket rate limiter (5 attempts per minute per IP on login endpoints).
+- **Persistence**: Spring Data JPA + Hibernate 6.5.x.
+- **Database Migrations**: Flyway 10.10.0 (Immutable version-controlled schema scripts).
 - **Connection Pool**: HikariCP (High-throughput, low-latency connection management).
 - **Data Validation**: Hibernate Validator / `jakarta.validation` annotations on all incoming DTOs.
+- **API Documentation**: SpringDoc OpenAPI 3.0 (`/api-docs` and `/swagger-ui.html`).
 - **Build Tool**: Apache Maven 3.9+.
 
 ### Database
-- **Engine**: MySQL 8.0+ (`the_station_stories`).
+- **Engine**: MySQL 9.5.0 (`the_station_stories`).
 - **Character Set**: `utf8mb4` with `utf8mb4_unicode_ci` collation (supporting English, Hindi Devnagari script, and emojis).
 - **Storage Engine**: InnoDB (ACID transactions, foreign key integrity, row-level locking for billing sequences).
 
@@ -79,25 +80,26 @@
 
 ## 3. UI/UX Design System Preparation
 
-The visual theme for **THE STATION STORIES** takes direct inspiration from the restaurant's authentic architecture, vintage locomotive heritage, and modern lighting:
+The visual theme for **THE STATION STORIES** takes direct inspiration from the restaurant's authentic architecture, vintage locomotive heritage, and modern lighting with the officially approved brand color palette:
 
 ```
 +-------------------------------------------------------------------------------+
 |                       THE STATION STORIES DESIGN SYSTEM                       |
 +-------------------------------------------------------------------------------+
-| Primary Background   | Midnight Charcoal    | #12161A / #1A2026               |
-| Neutral Surface      | Warm Ivory           | #FBF9F5 / #F5F0E6               |
-| Accent Primary       | Champagne Gold       | #D4AF37 / #C5A059               |
-| Atmosphere Accent    | Subtle Purple/Indigo | #6366F1 / #7C3AED / #9333EA     |
-| Text Main            | Deep Slate / Charcoal| #0F172A (Light) / #F8FAFC (Dark)|
-| Typography - Heading | Playfair Display / Cormorant Garamond                  |
-| Typography - Body    | Inter / Plus Jakarta Sans                              |
+| Primary Surface / Light Bg | Warm Ivory        | #F7F1E8                      |
+| Primary Brand & Contrast   | Royal Plum        | #45213F                      |
+| Accent & Luxury Gold       | Champagne Gold    | #C5A16B                      |
+| Dark Background Surface    | Deep Charcoal     | #1A181B / #121013            |
+| Text Primary (on Light)    | Deep Charcoal     | #231F20                      |
+| Text Secondary (on Light)  | Soft Slate / Plum | #5A4A57                      |
+| Typography - Heading       | Playfair Display / Cormorant Garamond            |
+| Typography - Body          | Inter / Plus Jakarta Sans                        |
 +-------------------------------------------------------------------------------+
 ```
 
-- **Brand Ambiance Harmony**: The subtle purple and indigo accents directly mirror the actual neon cove lighting and crystal chandelier captured in original photographs `WhatsApp Image 2026-11-12 at 10.12.14 (2).jpeg` and `WhatsApp Image 2026-11-12 at 10.12.16 (2).jpeg`.
-- **Authentic Photography Centrality**: Authentic images are showcased prominently in the Homepage Hero, About Us, Ambience Highlights, and Photo Gallery.
-- **Micro-interactions**: Subtle, purposeful transitions on button hovers, menu category switches, and POS cart updates.
+- **Brand Ambiance Harmony**: The Royal Plum (`#45213F`) and Champagne Gold (`#C5A16B`) mirror the authentic interior luxury seating, neon cove lighting, and vintage brass locomotive accents.
+- **Authentic Photography Centrality**: Authentic images from `referance-assets/` are showcased prominently in the Hero, About Us, Ambience Highlights, and Photo Gallery.
+- **Micro-interactions**: Subtle, purposeful transitions powered by GSAP, Motion, and Embla Carousel where appropriate.
 
 ---
 
@@ -280,3 +282,27 @@ The initial release focuses on core operations while cleanly accommodating futur
 | **Payment Gateway Integration** | `PaymentProcessingStrategy` interface allows plug-and-play addition of Razorpay, Cashfree, or Paytm. |
 | **Kitchen Order Ticket (KOT)** | `bill_items.item_status` enum (`ORDERED`, `PREPARING`, `SERVED`) enables future kitchen display terminal route `/kitchen`. |
 | **Inventory Management** | `MenuItem` entity supports an optional `recipe_id` foreign key for future ingredient depletion. |
+
+---
+
+## 10. Cross-Platform Strategy & Future Windows Offline POS Architecture
+
+### 1. Separation of Public Website & Private POS
+The public customer-facing website and the private POS management system are strictly separated:
+- **Public Website (Phase 3)**: Independent customer-facing web application optimized for desktop, tablet, and mobile browsers (Digital Menu, QR Menu `/qr-menu`, Ambiance Gallery, Restaurant Story, Public Invoice Viewer `/bill/view/:uuid`).
+- **Private POS & Admin (Future / Separate Phases)**: Dedicated operations application with role guards, cashier fast-billing workflows, and manager controls.
+
+### 2. Future POS Windows Local Deployment
+In future phases, the POS billing application will run on a dedicated counter computer running Windows:
+- **Local Database**: Embedded/Local MySQL instance (`localhost:3306`) ensuring 100% offline billing capability without relying on internet connectivity.
+- **Offline Reliability**: Peak rush-hour billing, thermal receipt printing, and sequence generation operate seamlessly regardless of ISP downtime.
+
+### 3. Backup Architecture (Encrypted External & Cloud)
+To guarantee zero data loss:
+- **Encrypted Local Backups**: Automated daily encrypted database dumps saved to local external drives / USB storage.
+- **Encrypted Cloud Backups**: Periodic secure synchronization of encrypted snapshots to off-site cloud storage whenever internet is active.
+
+### 4. Cross-Platform Codebase Integrity
+- Avoid any macOS-specific assumptions in scripts, paths, or code (use standard forward slashes, standard environment variable injection, platform-neutral Java 21 / Node.js standard APIs).
+- The same application codebase builds and runs identically on macOS (development), Linux (cloud servers), and Windows (restaurant counter hardware).
+

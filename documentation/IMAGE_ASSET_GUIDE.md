@@ -24,7 +24,7 @@
 
 ## 2. Workspace Image Inventory & Technical Audit
 
-All 13 original photographs located in `/Users/sahil/Documents/Station_Stories/referance-assets/` have been audited. Every file has dimensions of **1200 × 1600 pixels (Portrait)** in **JPEG** format.
+All 13 original photographs located in `referance-assets/` have been audited. Every file has dimensions of **1200 × 1600 pixels (Portrait)** in **JPEG** format.
 
 | # | Original Filename | Dimensions | Asset Status | Primary Category | Secondary Category | Proposed Production Path | Proposed Website Placement |
 |---|---|---|---|---|---|---|---|

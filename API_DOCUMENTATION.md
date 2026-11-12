@@ -73,6 +73,23 @@ Authenticates credentials and issues a signed JWT token.
 Retrieves current user identity and permissions from token claims.
 - **Access**: Authenticated (`ROLE_ADMIN`, `ROLE_CASHIER`)
 
+### `POST /api/v1/auth/logout`
+Client-side token disposal endpoint and server-side audit trace.
+- **Access**: Authenticated (`ROLE_ADMIN`, `ROLE_CASHIER`)
+
+### `POST /api/v1/auth/setup-admin`
+One-time initial administrator bootstrap endpoint. Strictly disabled once an admin exists. Requires `X-Setup-Token` header matching the environment variable `ADMIN_SETUP_TOKEN`.
+- **Access**: Public with Setup Token (only when no admin exists)
+- **Request Body**:
+```json
+{
+  "username": "admin",
+  "password": "SecurePassword2026!",
+  "fullName": "Restaurant Owner",
+  "phone": "9876543210"
+}
+```
+
 ---
 
 ## 3. Public Customer Endpoints (`/api/v1/public`)
@@ -213,7 +230,7 @@ Instant 10-digit customer lookup for returning customer identification.
   "data": {
     "id": 45,
     "phone": "9876543210",
-    "name": "Sahil Kumar",
+    "name": "Rahul Sharma",
     "visitCount": 5,
     "totalSpent": 2450.00,
     "lastVisitAt": "2026-11-10T19:30:00Z"
@@ -230,7 +247,7 @@ Authoritative bill creation with thread-safe sequence generation, transaction sa
   "orderType": "DINE_IN",
   "cabinTableRef": "Cabin 1",
   "customerPhone": "9876543210",
-  "customerName": "Sahil Kumar",
+  "customerName": "Rahul Sharma",
   "paymentMethod": "UPI",
   "discountType": "FLAT",
   "discountValue": 20.00,
@@ -282,7 +299,21 @@ Fetches structured receipt payload with thermal printer formatting instructions 
 
 ---
 
+### `POST /api/v1/pos/customers`
+Explicitly registers or updates a customer profile.
+- **Access**: `ROLE_CASHIER`, `ROLE_ADMIN`
+
+### `GET /api/v1/pos/customers/{id}/purchase-history`
+Fetches paginated past orders and receipts for a specific customer.
+- **Access**: `ROLE_CASHIER`, `ROLE_ADMIN`
+
+---
+
 ## 5. Admin Management Endpoints (`/api/v1/admin`)
+
+### Staff Management
+- `POST /api/v1/admin/users/staff`: Creates verified staff account (Cashier or Admin).
+  - Requires mandatory `companyCardNumber`, `username`, `password` (min 8 chars), `fullName`, and `role` (`ROLE_CASHIER` or `ROLE_ADMIN`).
 
 ### Bill History, Cancellation & Audit
 - `GET /api/v1/admin/bills`: Searchable historical invoices with date range, status (`PAID`, `CANCELLED`), and payment method filters.
@@ -299,15 +330,24 @@ Fetches structured receipt payload with thermal printer formatting instructions 
 ### Menu & Category Management
 - `POST /api/v1/admin/categories` – Create food category.
 - `PUT /api/v1/admin/categories/{id}` – Edit category.
+- `DELETE /api/v1/admin/categories/{id}` – Safely delete empty category (blocks deletion if active items exist).
 - `POST /api/v1/admin/menu` – Add dish item.
 - `PUT /api/v1/admin/menu/{id}` – Edit dish details or price (never impacts historical bills).
+- `PATCH /api/v1/admin/menu/{id}/price` – Update dish price with mandatory audit logging.
 - `PATCH /api/v1/admin/menu/{id}/toggle-availability` – Instant in-stock/86 switch.
+- `POST /api/v1/admin/menu/{id}/image` – Upload food photo (`multipart/form-data`) validated for JPEG, PNG, or WebP.
 
 ### Financial Analytics & Reports
-- `GET /api/v1/admin/reports/dashboard` – Real-time today metrics (gross sales, cash vs UPI, order count).
-- `GET /api/v1/admin/reports/daily?date=2026-11-12` – Daily hourly breakdown and cashier reconciliation.
-- `GET /api/v1/admin/reports/monthly?year=2026&month=11` – Monthly aggregated financial summary.
+- `GET /api/v1/admin/reports/dashboard` – Real-time today metrics (gross sales, cash vs UPI, order count, top selling dishes).
 
 ### Store Settings & Dynamic Tax Controls
 - `GET /api/v1/admin/settings` – Retrieve current settings.
 - `PUT /api/v1/admin/settings` – Update settings (GST toggle, rates, UPI ID, contact details).
+
+---
+
+## 6. Interactive API Documentation & OpenAPI Specification
+
+- **OpenAPI 3.0 JSON Specification**: `GET http://localhost:8080/api-docs`
+- **Swagger UI Interactive Console**: `GET http://localhost:8080/swagger-ui.html` (redirects to `/swagger-ui/index.html`)
+
