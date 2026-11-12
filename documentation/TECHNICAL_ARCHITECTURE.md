@@ -2,7 +2,7 @@
 
 ## 1. Architectural Overview
 
-**THE STATION STORIES** system is engineered as a **Modular Monolith** designed for high reliability, strict financial safety, low operational complexity, and optimal counter performance. It comprises a decoupled **Spring Boot 3.3.x REST API** backend (Java 21) and a high-performance **React 18 + Vite Single Page Application (SPA)** frontend, communicating over secure JSON REST endpoints and backed by a **MySQL 8** relational database (`the_station_stories`).
+**THE STATION STORIES** system is engineered as a **Modular Monolith** designed for high reliability, strict financial safety, low operational complexity, and optimal counter performance. It comprises a decoupled **Spring Boot 3.3.x REST API** backend (Java 21 bytecode release targeting on host Java 26.0.1 runtime) and a high-performance **React 18 + Vite Single Page Application (SPA)** frontend, communicating over secure JSON REST endpoints and backed by a **MySQL 9.5.0** relational database (`the_station_stories`, compatible with MySQL 8 dialect).
 
 ```
                       +------------------------------------------+
@@ -38,7 +38,7 @@
                                      JDBC Connection
                                            |
                       +--------------------v---------------------+
-                      |       MySQL 8: the_station_stories       |
+                      |     MySQL 9.5.0: the_station_stories     |
                       |      Managed via Flyway Migrations       |
                       +------------------------------------------+
 ```

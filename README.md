@@ -11,10 +11,10 @@
 
 Ensure the following tools are installed on your workstation:
 - **Operating System**: macOS, Linux, or Windows 11
-- **Java**: OpenJDK 21 LTS (or compatible Homebrew OpenJDK 26)
+- **Java**: Installed OpenJDK 26.0.1 (macOS ARM64), with Maven compiler plugin explicitly configured with `<release>21</release>` targeting Java 21 bytecode release
 - **Maven**: Apache Maven 3.9+
-- **Node.js**: Node.js v20+ or v26+ with npm v10+
-- **Database**: MySQL 8.0+ (MySQL 9.x supported)
+- **Node.js**: Node.js v20+ with npm v10+
+- **Database**: Installed MySQL 9.5.0 database server (`the_station_stories`), using MySQL Connector/J and Flyway 10.10.0 (MySQL 8 dialect compatible)
 
 ---
 
@@ -170,13 +170,13 @@ The Vite development server will start at:
 > **Phase 0 → Phase 1 → Phase 3 → Phase 2 → Phase 4 → Phase 5 → Phase 6**.  
 > Do not renumber the phases. Phase 3 (Public Customer Website Design and Frontend) is developed before Phase 2 by deliberate owner decision.
 
-- **Phase 0 – Planning and Documentation** (Completed)
-- **Phase 1 – Project Foundation and Environment Setup** (Completed)
-- **Phase 3 – Public Customer Website Design and Frontend** (Currently in progress / final review)
-- **Phase 2 – Backend Business Logic and APIs** (Next)
-- **Phase 4 – Admin Dashboard** (Pending)
-- **Phase 5 – Local POS and Billing System** (Pending)
-- **Phase 6 – Testing, Security, Windows Deployment, Backup and Production Launch** (Pending)
+- **Phase 0 – Planning and Documentation**: Completed
+- **Phase 1 – Project Foundation and Environment Setup**: Completed
+- **Phase 3 – Public Customer Website Design and Frontend**: Final Review
+- **Phase 2 – Backend Business Logic and APIs**: Implementation Completed – Functional Verification Pending
+- **Phase 4 – Admin Dashboard**: Pending
+- **Phase 5 – Local POS and Billing System**: Pending
+- **Phase 6 – Testing, Security, Windows Deployment, Backup and Production Launch**: Pending
 
 ---
 

@@ -125,7 +125,7 @@ The system comprises three strictly separated functional areas:
 ---
 
 ### Phase 3: Public Customer Website Design and Frontend
-- **Status**: 🔄 **CURRENTLY IN PROGRESS / FINAL REVIEW**
+- **Status**: 🔄 **FINAL REVIEW**
 - **Scope**:
   1. Full Customer Website built on approved Warm Ivory (`#F7F1E8`) and Royal Plum (`#45213F`) palette.
   2. Asymmetrical editorial Homepage with authentic central dining hall backdrop, 4 pillars, brand story, and photo gallery showcase.
@@ -139,13 +139,17 @@ The system comprises three strictly separated functional areas:
 ---
 
 ### Phase 2: Backend Business Logic and APIs
-- **Status**: ⏳ **NEXT UP**
-- **Scope**:
-  1. Finalize modular monolith backend services: Auth & RBAC (`ROLE_ADMIN`, `ROLE_CASHIER`), Menu & Categories, Customer CRM, Billing Engine, Reports, Settings.
-  2. Implement thread-safe daily bill sequence generator (`TSS-YYYYMMDD-XXXX`) with pessimistic row locking.
-  3. Authoritative financial calculations (subtotal, discounts, dynamic tax engine strictly 0% by default).
-  4. Public digital invoice endpoint (`/api/v1/public/bill/view/{uuid}`) and WhatsApp sharing payload generator.
-  5. Full unit and integration test suite execution.
+- **Status**: ⏳ **IMPLEMENTATION COMPLETED – FUNCTIONAL VERIFICATION PENDING**
+- **Architecture & Implementation State**:
+  - Full backend domain modular monolith is implemented and compiling (11 JPA entities, 12 repositories, 12 services, 5 REST controllers, 16 DTOs, Spring Security RBAC, login rate limiter, and 3 Flyway migrations).
+  - Authoritative financial calculations, discount models, zero-tax defaults, finalized bill soft-cancellation safety, customer phone normalization, and rate limiting have passed 23 unit tests in Mockito mock testing.
+- **Pending Functional Verification**:
+  - Comprehensive live end-to-end integration testing across all 15+ controller endpoints against live MySQL database constraints.
+  - Multi-width thermal receipt layout verification (80mm & 58mm).
+  - Multipart image upload endpoint (`POST /api/v1/admin/menu/{id}/image`) with live file system write.
+  - Live multi-user concurrent daily bill sequence generation (`TSS-YYYYMMDD-XXXX`).
+  - Full frontend-backend cross-origin integration with live JWT authorization tokens.
+  - *(This dedicated functional verification is scheduled as the immediate next step upon Phase 3 sign-off)*.
 
 ---
 

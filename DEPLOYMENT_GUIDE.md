@@ -4,10 +4,10 @@
 
 ### Server / Local Machine Environment
 - **Operating System**: macOS, Linux (Ubuntu 22.04 LTS recommended), or Windows 11.
-- **Java Runtime**: OpenJDK 21 LTS (or OpenJDK 26 runtime available via Homebrew/Eclipse Temurin).
+- **Java Runtime**: Installed OpenJDK 26.0.1 (macOS ARM64), with Maven compiler targeting Java 21 bytecode release (`<release>21</release>`).
 - **Build Tool**: Apache Maven 3.9+.
-- **Node.js**: Node.js v20+ or v26+ with npm v10+.
-- **Database**: MySQL Server 8.0+ (MySQL 9.x fully supported).
+- **Node.js**: Node.js v20+ with npm v10+.
+- **Database**: Installed MySQL Server 9.5.0 (`the_station_stories`, MySQL 8 dialect compatible).
 - **Hardware Minimums**: 4 GB RAM, 2 CPU cores, 10 GB disk storage.
 
 ---

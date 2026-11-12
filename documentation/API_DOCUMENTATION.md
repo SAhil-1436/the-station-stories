@@ -7,6 +7,12 @@
 - **Payload Format**: `application/json;charset=UTF-8`
 - **Authentication**: Bearer Token in `Authorization` header (`Bearer <JWT_TOKEN>`)
 
+> [!NOTE]
+> **API Implementation & Verification Status**:
+> - **Contract & Codebase Status**: Fully implemented in the Spring Boot backend (`com.stationstories`).
+> - **Phase Status**: **Phase 2 – Implementation Completed; Functional Verification Pending**.
+> - Core domain business logic (23 unit tests covering calculations, discounts, zero-tax defaults, finalized bill soft-cancellation protection, customer phone normalization, and rate limiting) has executed and passed in isolated mock testing. Live end-to-end integration testing across all controller endpoints against the running MySQL database is scheduled for Phase 2 functional verification following Phase 3 sign-off.
+
 ### Standard Response Envelope
 ```json
 {

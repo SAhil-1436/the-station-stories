@@ -3,10 +3,10 @@
 ## Project Overview
 - **Project Name**: THE STATION STORIES Restaurant Website & Management System
 - **Brand Identity**: **THE STATION STORIES** (strictly plural)
-- **Database Name**: **`the_station_stories`** (MySQL 8)
+- **Database Name**: **`the_station_stories`** (MySQL 9.5.0 installed, MySQL 8 dialect compatible)
 - **Current Active Phase**: Phase 3 (Public Customer Website Design and Frontend)
-- **Phase Status**: 🔄 **PHASE 3 IN PROGRESS / FINAL REVIEW**
-- **Next Phase**: Phase 2 (Backend Business Logic and APIs)
+- **Phase Status**: 🔄 **PHASE 3 – FINAL REVIEW**
+- **Next Phase**: Phase 2 (Backend Business Logic and APIs – Functional Verification)
 - **Last Updated**: 2026-11-12
 
 ---
@@ -21,10 +21,10 @@
 | Phase | Description | Status | Blockers / Next Step |
 |---|---|---|---|
 | **Phase 0** | Planning and Documentation | ✅ **Completed** | Approved |
-| **Phase 1** | Project Foundation and Environment Setup | ✅ **Completed & Verified** | Preserved Java 26.0.1 & MySQL 9.5.0 compatibility |
-| **Phase 3** | Public Customer Website Design and Frontend | 🔄 **In Progress / Final Review** | Approved Palette (#F7F1E8, #45213F, #C5A16B), Vite Build Passed |
-| **Phase 2** | Backend Business Logic and APIs | ⏳ **Next** | Begins after Phase 3 review and sign-off |
-| **Phase 4** | Admin Dashboard | ⏳ **Pending** | Depends on Phase 2 |
+| **Phase 1** | Project Foundation and Environment Setup | ✅ **Completed & Verified** | Preserved Java 26.0.1 (release 21 bytecode) & MySQL 9.5.0 compatibility |
+| **Phase 3** | Public Customer Website Design and Frontend | 🔄 **Final Review** | Approved Palette (#F7F1E8, #45213F, #C5A16B), Production Build Passed |
+| **Phase 2** | Backend Business Logic and APIs | ⏳ **Implementation Completed – Functional Verification Pending** | Implementation exists; live end-to-end API verification begins after Phase 3 sign-off |
+| **Phase 4** | Admin Dashboard | ⏳ **Pending** | Depends on Phase 2 verification |
 | **Phase 5** | Local POS and Billing System | ⏳ **Pending** | Depends on Phase 4 |
 | **Phase 6** | Testing, Security, Windows Deployment, Backup and Production Launch | ⏳ **Pending** | Depends on Phase 5 |
 
@@ -105,7 +105,14 @@
 
 ---
 
-## Phase 2 Implementation & Verification Report (Completed)
+## Phase 2 Implementation Summary (Historical Implementation Report – Functional Verification Pending)
+
+> [!NOTE]
+> **Status Clarification: Implementation Exists; Functional Verification Pending**
+> - **Codebase Implementation**: The complete Phase 2 backend architecture is fully implemented, compiling, and preserved (11 JPA entities, 12 repositories, 12 services, 5 REST controllers, 16 DTOs, Spring Security RBAC, login rate limiter, and 3 Flyway migrations).
+> - **Unit Test Verification**: 23 service-level unit tests (covering financial billing calculations, discount models, zero-tax defaults, finalized bill cancellation protection, customer phone normalization, and login rate limiting) have executed and passed in isolated mock testing.
+> - **Functional Verification Pending**: Comprehensive live end-to-end API verification across all endpoints against live MySQL database constraints, HTTP controller contracts, thermal receipt roll formatting, multipart image uploads, and frontend integration is scheduled as the next formal step (Phase 2 Verification) following Phase 3 sign-off.
+> - The endpoint records below reflect preliminary development audit traces and are preserved as historical references.
 
 ### 1. Database Architecture & Migrations
 - **Flyway Migrations Executed**:
@@ -164,7 +171,7 @@
   - `CategoryAndMenuServiceTest` (4 tests): Active catalog filtering, price update with audit log, empty category deletion, blocked deletion with active items.
   - `StationStoriesApplicationTests` (1 test): Spring Boot context loading, JPA repository scanning, Flyway schema validation.
 
-### 6. Live API Verification Matrix
+### 6. Preliminary Development Audit Record (Historical Smoke Test Trace)
 | Endpoint | Method | Result | Notes |
 |---|---|---|---|
 | `/api/health` | GET | `200 OK` | Java 26.0.1, MySQL 9.5.0 connected |
@@ -184,7 +191,7 @@
 
 ---
 
-## Phase 3 Execution & Verification Report (Completed)
+## Phase 3 Execution & Deliverables Report (Final Review)
 
 ### 1. Approved Brand Design & Architecture Alignment
 - **Official Brand Name**: **The Station Stories** (strictly plural).
