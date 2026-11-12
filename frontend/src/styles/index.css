@@ -2,45 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base Reset & Variables */
+/* Base Reset & Variables for Ivory + Royal Plum + Champagne Gold */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   --color-warm-ivory: #F7F1E8;
   --color-royal-plum: #45213F;
   --color-champagne-gold: #C5A16B;
-  --color-deep-charcoal: #121013;
+  --color-soft-lavender: #E9DDEB;
+  --color-muted-rose: #B88E9D;
+  --color-dark-plum: #32172F;
+  --color-body-text: #332A35;
 }
 
 html {
   scroll-behavior: smooth;
+  background-color: #F7F1E8;
 }
 
 body {
   margin: 0;
-  background-color: #121013;
-  color: #F7F1E8;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #F7F1E8;
+  color: #332A35;
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Scrollbar in Luxury Plum & Champagne Gold */
+/* Luxury Headings Default */
+h1, h2, h3, h4, h5, h6 {
+  color: #45213F;
+}
+
+/* Custom Scrollbar in Warm Ivory & Royal Plum */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1A181B;
+  background: #EFE7DC;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #45213F;
-  border-radius: 4px;
-  border: 1px solid rgba(197, 161, 107, 0.3);
+  background: #5A2C52;
+  border-radius: 9999px;
+  border: 2px solid #F7F1E8;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #C5A16B;
+  background: #45213F;
+}
+
+/* Subtle gold selection highlight */
+::selection {
+  background-color: #C5A16B;
+  color: #32172F;
 }
 
 /* Thermal Printer Clean Print Styles (58mm & 80mm) */

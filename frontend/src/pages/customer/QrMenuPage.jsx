@@ -1,140 +1,137 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   QrCode, 
   Search, 
-  ShoppingBag, 
-  BellRing, 
-  Check, 
   X, 
-  Plus, 
-  Minus,
-  Sparkles 
+  Flame, 
+  Info, 
+  Compass, 
+  MapPin, 
+  Clock 
 } from 'lucide-react';
-import { getCategories, getMenu } from '../../services/api';
+import { MENU_CATEGORIES, MENU_ITEMS } from '../../data/menuData';
 
 export default function QrMenuPage() {
   const { t, i18n } = useTranslation();
-  const [categories, setCategories] = useState([]);
-  const [menuItems, setMenuItems] = useState([]);
-  const [selectedCabin, setSelectedCabin] = useState('Cabin 1');
-  const [activeCategory, setActiveCategory] = useState(null);
-  const [search, setSearch] = useState('');
-  const [tray, setTray] = useState({});
-  const [isTrayModalOpen, setIsTrayModalOpen] = useState(false);
-  const [serverCalled, setServerCalled] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null); // null = All
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCabin, setSelectedCabin] = useState('Express Dining');
+  const isHindi = i18n.language.startsWith('hi');
 
-  const cabinOptions = [
-    'Cabin 1 (Express Lounge)',
+  const cabinLocations = [
+    'Express Dining (Main Hall)',
+    'Cabin 1 (Express Cabin)',
     'Cabin 2 (Royal Cabin)',
     'Cabin 3 (First Class Cabin)',
     'Table 1', 'Table 2', 'Table 3', 'Table 4', 'Table 5',
-    'Table 6', 'Table 7', 'Table 8', 'Table 9', 'Table 10'
+    'Table 6', 'Table 7', 'Table 8', 'Table 9', 'Table 10',
+    'Takeaway Counter'
   ];
 
-  useEffect(() => {
-    Promise.all([getCategories(), getMenu()]).then(([cats, items]) => {
-      setCategories(cats || []);
-      setMenuItems(items || []);
-      if (cats && cats.length > 0) setActiveCategory(cats[0].id);
-    });
-  }, []);
-
-  const handleAddItem = (item) => {
-    setTray(prev => ({
-      ...prev,
-      [item.id]: {
-        item,
-        quantity: (prev[item.id]?.quantity || 0) + 1
+  // Filter items
+  const filteredDishes = useMemo(() => {
+    return MENU_ITEMS.filter((item) => {
+      if (selectedCategory !== null && item.categoryId !== selectedCategory) {
+        return false;
       }
-    }));
-  };
-
-  const handleDecrementItem = (itemId) => {
-    setTray(prev => {
-      const copy = { ...prev };
-      if (copy[itemId]) {
-        if (copy[itemId].quantity > 1) {
-          copy[itemId].quantity -= 1;
-        } else {
-          delete copy[itemId];
-        }
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        const matchName = item.name.toLowerCase().includes(q);
+        const matchHindi = item.hindiName ? item.hindiName.includes(q) : false;
+        const matchDesc = item.description.toLowerCase().includes(q);
+        return matchName || matchHindi || matchDesc;
       }
-      return copy;
+      return true;
     });
-  };
-
-  const trayList = Object.values(tray);
-  const totalItems = trayList.reduce((acc, curr) => acc + curr.quantity, 0);
-  const grandEstimatedTotal = trayList.reduce((acc, curr) => acc + (Number(curr.item.price) * curr.quantity), 0);
-
-  const handleCallServer = () => {
-    setServerCalled(true);
-    setTimeout(() => setServerCalled(false), 5000);
-  };
-
-  const filteredItems = menuItems.filter(item => {
-    if (activeCategory && item.categoryId !== activeCategory) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      return item.name.toLowerCase().includes(q) || (item.hindiName && item.hindiName.includes(q));
-    }
-    return true;
-  });
+  }, [selectedCategory, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-charcoal-950 pb-28">
-      {/* Top Sticky Header */}
-      <div className="sticky top-16 z-30 bg-plum-950/95 backdrop-blur-md border-b border-gold-500/20 px-4 py-3 shadow-md">
-        <div className="max-w-3xl mx-auto flex flex-col gap-2.5">
+    <div className="min-h-screen bg-ivory pb-16">
+      {/* 1. Mobile-First Sticky Top Bar */}
+      <div className="sticky top-16 z-30 bg-ivory/95 backdrop-blur-md border-b border-gold/30 px-4 py-3 shadow-xs">
+        <div className="max-w-2xl mx-auto space-y-2.5">
+          {/* Header row: Brand & Cabin selector */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <QrCode className="w-5 h-5 text-gold-400" />
-              <span className="font-serif font-bold text-sm text-ivory-100">{t('qr.title')}</span>
+              <div className="w-8 h-8 rounded-full bg-plum-royal text-gold flex items-center justify-center">
+                <QrCode className="w-4 h-4" />
+              </div>
+              <div>
+                <h1 className="font-serif font-bold text-sm text-plum-royal leading-tight">
+                  The Station Stories
+                </h1>
+                <p className="text-[10px] text-gold-700 font-mono uppercase tracking-wider">
+                  Digital QR Menu
+                </p>
+              </div>
             </div>
 
             {/* Table / Cabin Selector */}
-            <div className="flex items-center gap-1.5">
-              <select
-                value={selectedCabin}
-                onChange={(e) => setSelectedCabin(e.target.value)}
-                className="bg-plum-900 border border-gold-500/40 text-gold-400 text-xs font-semibold rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gold-300"
-              >
-                {cabinOptions.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={selectedCabin}
+              onChange={(e) => setSelectedCabin(e.target.value)}
+              aria-label="Select table or private cabin"
+              className="bg-white border border-gold/40 text-plum-royal text-xs font-semibold rounded-full px-3 py-1.5 focus:outline-none focus:border-plum-royal shadow-2xs"
+            >
+              {cabinLocations.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Quick Search */}
+          {/* Search Box */}
           <div className="relative">
-            <Search className="w-4 h-4 text-gold-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-body-muted absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t('menu.searchPlaceholder')}
-              className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-plum-900/60 border border-gold-500/30 text-ivory-100 placeholder-ivory-200/40 text-xs focus:outline-none focus:border-gold-400"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search dishes (burger, pizza, noodles, chai)..."
+              className="w-full pl-9 pr-8 py-2 rounded-full bg-white border border-gold/30 text-body placeholder-body-muted/60 text-xs focus:outline-none focus:border-plum-royal transition-colors"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-body-muted hover:text-plum-royal"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          {/* Category Tabs Strip */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {categories.map(cat => {
-              const isSelected = activeCategory === cat.id;
-              const title = i18n.language.startsWith('hi') && cat.hindiName ? cat.hindiName : cat.name;
+          {/* Horizontal Category Strip */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                selectedCategory === null
+                  ? 'bg-plum-royal text-ivory shadow-xs'
+                  : 'bg-white text-plum-royal border border-gold/30 hover:bg-lavender-100'
+              }`}
+            >
+              All Dishes ({MENU_ITEMS.length})
+            </button>
+
+            {MENU_CATEGORIES.map((cat) => {
+              const isSelected = selectedCategory === cat.id;
+              const title = isHindi && cat.nameHi ? cat.nameHi : cat.nameEn;
+              const count = MENU_ITEMS.filter((i) => i.categoryId === cat.id).length;
+
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                     isSelected
-                      ? 'bg-gold-500 text-charcoal-950 font-bold shadow'
-                      : 'bg-plum-900/50 text-ivory-200/80 border border-gold-500/20 hover:text-gold-400'
+                      ? 'bg-plum-royal text-ivory shadow-xs'
+                      : 'bg-white text-plum-royal border border-gold/30 hover:bg-lavender-100'
                   }`}
                 >
-                  {title}
+                  {title} ({count})
                 </button>
               );
             })}
@@ -142,158 +139,101 @@ export default function QrMenuPage() {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="max-w-3xl mx-auto px-4 py-6">
-        {/* Table Welcome Banner */}
-        <div className="p-3.5 rounded-xl bg-plum-900/40 border border-gold-500/20 flex items-center justify-between gap-3 mb-6">
-          <div className="flex items-center gap-2.5">
-            <Sparkles className="w-5 h-5 text-gold-400 shrink-0" />
+      {/* 2. Welcome Cabin Banner */}
+      <div className="max-w-2xl mx-auto px-4 pt-4 pb-2">
+        <div className="p-3.5 rounded-2xl bg-lavender-100/80 border border-gold/30 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <Compass className="w-4 h-4 text-plum-royal shrink-0" />
             <div>
-              <p className="text-xs font-semibold text-ivory-100">Welcome to {selectedCabin}</p>
-              <p className="text-[11px] text-ivory-200/70">Browse dishes, build your order tray, and call your captain anytime.</p>
+              <p className="font-bold text-plum-royal">Welcome to {selectedCabin}</p>
+              <p className="text-[11px] text-body-muted font-light">Browse our menu and place your order with your table captain.</p>
             </div>
           </div>
-          <button
-            onClick={handleCallServer}
-            disabled={serverCalled}
-            className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              serverCalled
-                ? 'bg-green-600 text-white'
-                : 'bg-plum-800 text-gold-400 border border-gold-500/40 hover:bg-plum-700'
-            }`}
-          >
-            <BellRing className="w-3.5 h-3.5" />
-            <span>{serverCalled ? 'Captain Notified!' : t('qr.callServer')}</span>
-          </button>
-        </div>
-
-        {/* Compact Dish Items List */}
-        <div className="space-y-3">
-          {filteredItems.map(item => {
-            const count = tray[item.id]?.quantity || 0;
-            return (
-              <div
-                key={item.id}
-                className="p-3.5 rounded-xl bg-plum-950/70 border border-gold-500/20 flex items-center justify-between gap-3 hover:border-gold-500/40 transition-colors"
-              >
-                <div className="flex-1 min-w-0 pr-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-3.5 h-3.5 rounded border border-green-500 bg-white flex items-center justify-center shrink-0">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-600" />
-                    </div>
-                    <h3 className="font-serif font-bold text-sm text-ivory-100 truncate">
-                      {i18n.language.startsWith('hi') && item.hindiName ? item.hindiName : item.name}
-                    </h3>
-                  </div>
-                  <p className="text-[11px] text-ivory-200/60 line-clamp-1">{item.description}</p>
-                  <p className="text-sm font-serif font-bold text-gold-400 mt-1">₹{Number(item.price).toFixed(0)}</p>
-                </div>
-
-                {/* Add / Adjust Controls */}
-                <div className="shrink-0">
-                  {count > 0 ? (
-                    <div className="inline-flex items-center gap-2 bg-plum-900 border border-gold-500/40 rounded-lg p-1">
-                      <button
-                        onClick={() => handleDecrementItem(item.id)}
-                        className="w-6 h-6 rounded bg-plum-800 text-ivory-100 flex items-center justify-center hover:bg-plum-700"
-                        aria-label="Decrease quantity"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="text-xs font-bold text-gold-400 px-1">{count}</span>
-                      <button
-                        onClick={() => handleAddItem(item)}
-                        className="w-6 h-6 rounded bg-gold-500 text-charcoal-950 flex items-center justify-center hover:bg-gold-400"
-                        aria-label="Increase quantity"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleAddItem(item)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-gold-500 text-charcoal-950 hover:bg-gold-400 shadow-sm"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          <div className="text-right shrink-0">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-plum-royal text-ivory">
+              Dine-In
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Floating Bottom Order Bar */}
-      {totalItems > 0 && (
-        <div className="fixed bottom-6 inset-x-4 max-w-md mx-auto z-40">
-          <button
-            onClick={() => setIsTrayModalOpen(true)}
-            className="w-full flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-gold-500 to-gold-400 text-charcoal-950 shadow-2xl font-bold active:scale-95 transition-transform"
-          >
-            <div className="flex items-center gap-2.5">
-              <ShoppingBag className="w-5 h-5" />
-              <span>{totalItems} Items Selected</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-base font-serif">₹{grandEstimatedTotal.toFixed(0)}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-charcoal-950 text-gold-400">View Tray</span>
-            </div>
-          </button>
-        </div>
-      )}
-
-      {/* Tray Detail Modal */}
-      {isTrayModalOpen && (
-        <div 
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
-          onClick={() => setIsTrayModalOpen(false)}
-        >
-          <div 
-            className="w-full max-w-md bg-plum-950 border border-gold-500/30 rounded-2xl p-6 space-y-4 shadow-2xl animate-in slide-in-from-bottom"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-plum-900">
-              <div>
-                <h3 className="font-serif font-bold text-lg text-ivory-100">Order Tray • {selectedCabin}</h3>
-                <p className="text-xs text-gold-400">{totalItems} dishes selected</p>
-              </div>
-              <button
-                onClick={() => setIsTrayModalOpen(false)}
-                className="p-1 rounded-full text-ivory-200 hover:text-gold-400"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="max-h-60 overflow-y-auto space-y-2.5 pr-1">
-              {trayList.map(({ item, quantity }) => (
-                <div key={item.id} className="flex items-center justify-between text-xs p-2.5 rounded-lg bg-plum-900/50">
-                  <span className="font-semibold text-ivory-100">{item.name} × {quantity}</span>
-                  <span className="font-mono text-gold-400 font-bold">₹{(Number(item.price) * quantity).toFixed(0)}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="pt-3 border-t border-plum-900 flex items-center justify-between text-base font-bold">
-              <span className="text-ivory-100">Estimated Total:</span>
-              <span className="text-gold-400 font-serif text-xl">₹{grandEstimatedTotal.toFixed(0)}</span>
-            </div>
-
-            <p className="text-[11px] text-ivory-200/70 text-center leading-relaxed">
-              Show this screen to your table captain or order at the counter.
-            </p>
-
-            <button
-              onClick={() => setIsTrayModalOpen(false)}
-              className="w-full py-3 rounded-xl text-xs font-bold bg-gold-500 text-charcoal-950 hover:bg-gold-400 transition-colors"
-            >
-              Done & Return to Menu
-            </button>
+      {/* 3. Fast Mobile Dish List (Browsing Only) */}
+      <div className="max-w-2xl mx-auto px-4 py-3 space-y-3">
+        {filteredDishes.length === 0 ? (
+          <div className="py-16 text-center text-body-muted text-sm space-y-2">
+            <p className="font-serif text-base text-plum-royal font-bold">No dishes found</p>
+            <p className="text-xs">Try selecting a different category or clearing the search box.</p>
           </div>
-        </div>
-      )}
+        ) : (
+          filteredDishes.map((item) => {
+            const displayName = isHindi && item.hindiName ? item.hindiName : item.name;
+            const secondaryName = isHindi ? item.name : item.hindiName;
+
+            return (
+              <article
+                key={item.id}
+                className="p-3.5 rounded-2xl bg-white border border-gold/30 shadow-soft flex items-center gap-3.5"
+              >
+                {/* Compact Thumbnail */}
+                <div className="w-20 h-20 rounded-xl overflow-hidden bg-lavender-100 shrink-0 relative">
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  {/* Veg dot */}
+                  <div className="absolute top-1 left-1 w-3.5 h-3.5 rounded border border-emerald-600 bg-white flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0 pr-1 space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="font-serif font-bold text-sm sm:text-base text-plum-royal truncate">
+                      {displayName}
+                    </h3>
+                    {item.spiceLevel > 0 && (
+                      <div className="flex items-center text-rose-muted shrink-0">
+                        {[...Array(item.spiceLevel)].map((_, i) => (
+                          <Flame key={i} className="w-3 h-3 fill-current text-rose-muted" />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {secondaryName && (
+                    <p className="text-[11px] text-body-muted truncate font-sans">
+                      {secondaryName}
+                    </p>
+                  )}
+
+                  <p className="text-[11px] text-body-muted/80 line-clamp-2 font-light leading-snug">
+                    {item.description}
+                  </p>
+
+                  <div className="pt-1 flex items-center justify-between">
+                    <span className="font-serif font-bold text-sm sm:text-base text-plum-royal">
+                      ₹{Number(item.price).toFixed(0)}
+                    </span>
+
+                    <span className="text-[10px] text-emerald-800 font-semibold px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-300">
+                      Available
+                    </span>
+                  </div>
+                </div>
+              </article>
+            );
+          })
+        )}
+      </div>
+
+      {/* 4. Bottom Table Captain Information Note */}
+      <div className="max-w-2xl mx-auto px-4 pt-6 text-center text-xs text-body-muted/70 space-y-1">
+        <p className="font-serif font-semibold text-plum-royal">The Station Stories Dining Experience</p>
+        <p className="font-light">Please inform your service captain of any dietary preferences or allergy requirements.</p>
+      </div>
     </div>
   );
 }

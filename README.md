@@ -150,11 +150,15 @@ npm run dev
 The Vite development server will start at:
 `http://localhost:5173/`
 
-### Frontend Routes Available (Phase 1 Placeholders)
-- `/`: Customer Website homepage displaying live backend & MySQL connectivity status banner.
-- `/pos`: Point-of-Sale billing cashier counter terminal placeholder.
-- `/admin/login`: Admin authentication portal placeholder.
-- `/admin`: Admin analytics dashboard placeholder.
+### Frontend Routes Available (Phase 3 Customer Experience)
+- `/`: Premium Customer Website Homepage (Hero, 4 Pillars, Story, Featured Menu, 6-photo Ambience Showcase, Visit Us).
+- `/menu`: Full Digital Menu with category tabs, search, veg toggle, and dish cards with `[Representative Image]` badges.
+- `/qr-menu`: Touch-optimized Table/Cabin QR digital browsing menu with cabin selector and captain call alert (browsing only, no checkout).
+- `/gallery`: High-resolution gallery with all 13 authentic photos categorized and interactive Lightbox modal.
+- `/about`: Brand story, railway heritage narrative, and authentic interior/signage highlights.
+- `/contact`: Operating hours (`11:00 AM – 11:00 PM`), inquiry reservation form, and direct WhatsApp chat.
+- `/bill/view/:uuid`: Public digital invoice view with 80mm/58mm thermal receipt layout and browser print support.
+- `/admin/login`: Discreet staff portal login (accessible via footer link only).
 
 ---
 

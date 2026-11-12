@@ -183,13 +183,19 @@
 
 ### 1. Approved Brand Design & Architecture Alignment
 - **Official Brand Name**: **The Station Stories** (strictly plural).
-- **Approved Brand Colors**:
-  - **Warm Ivory (`#F7F1E8`)**: Primary light background and neutral surface.
-  - **Royal Plum (`#45213F`)**: Primary brand color & deep contrast.
-  - **Champagne Gold (`#C5A16B`)**: Accent highlights, borders, buttons, and badges.
+- **Approved Brand Color System (Warm Luxury Aesthetic)**:
+  - **Warm Ivory (`#F7F1E8`)**: Dominant website background across all pages — bright, luxurious, and welcoming (strictly avoiding dark charcoal backgrounds).
+  - **Royal Plum (`#45213F`)**: Primary brand headings, brand accents, and primary CTA buttons with ivory text.
+  - **Champagne Gold (`#C5A16B`)**: Important highlights, borders, badges, star ratings, and subtle metallic dividers.
+  - **Soft Lavender (`#E9DDEB`)**: Secondary card backgrounds and category filters.
+  - **Muted Rose (`#B88E9D`)**: Decorative borders, tags, and delicate badges.
+  - **Dark Plum (`#32172F`)**: Selected hero overlays, luxury footer background, and deep contrast panels.
+  - **Body Text (`#332A35`)**: High contrast, readable typography on Warm Ivory surfaces.
+  - **Pure White (`#FFFFFF`)**: Clean card surfaces and content wrappers.
 - **Application Separation**:
   - Customer-facing website (`/`, `/menu`, `/qr-menu`, `/gallery`, `/about`, `/contact`, `/bill/view/:uuid`) is completely independent from the private POS system.
-  - Discreet Staff Portal link (`/admin/login`) in footer; customer navigation contains zero internal POS/admin links.
+  - QR Menu (`/qr-menu`) is strictly a browsing and discovery tool (zero checkout, zero online payments, zero cart).
+  - Discreet Staff Portal link (`/admin/login`) located exclusively in the footer; customer navigation contains zero internal POS/admin links.
 - **Cross-Platform & Future POS Architecture**:
   - Confirmed future Windows local deployment with local MySQL and offline billing.
   - Confirmed future encrypted local and cloud backup architecture.
@@ -201,11 +207,11 @@
   - `frontend/public/images/restaurant/`: 12 high-resolution authentic photos covering dining hall, booths, swing pods, neon lights, crystal chandelier, and murals.
   - `frontend/public/images/branding/`: `station-stories-signage.jpeg`.
   - `frontend/public/referance-assets/`: Mirrored master files for direct database URL resolution.
-- Temporary Food Photos: Styled SVG/WebP placeholders with explicit `[Representative Image]` badges as mandated by `IMAGE_ASSET_GUIDE.md`.
+- Temporary Food Photos: 20 styled dish items with explicit `[Representative Image]` badges as mandated by `IMAGE_ASSET_GUIDE.md`.
 
 ### 3. Customer Web Platform Pages Implemented
 1. **`HomePage.jsx` (`/`)**:
-   - Hero banner with authentic central dining hall backdrop (`interior-main-hall.jpeg`), bold Playfair Display typography, "Open Today 11 AM - 11 PM" badge, and dual CTAs ("Explore Menu" & "Scan Table QR").
+   - Hero banner with authentic central dining hall backdrop (`interior-main-hall.jpeg`), bold Cormorant Garamond / Playfair Display typography, "Open Today 11:00 AM - 11:00 PM" live status badge, and dual CTAs ("Explore Menu" & "Scan Table QR").
    - "The Journey & The Ambience" section featuring 4 core pillars with authentic photos (Express Dining Hall, Private Express Cabins, Cozy Swing Pods, Fresh Kitchen Craft).
    - "Chef's Handcrafted Highlights" dish grid with live backend data and offline fallback.
    - Authentic Ambience Showcase showcasing 6 real photographs with instant lightbox zoom.
@@ -214,16 +220,15 @@
    - Dynamic category filter rail (`All`, `Burgers & Sandwiches`, `Pizzas & Garlic Breads`, `Chinese & Fast Food`, `Beverages & Shakes`, `Chaat & Quick Bites`).
    - 100% Vegetarian Only toggle switch.
    - Real-time search bar (by English or Hindi dish name, ingredients, or description).
-   - Responsive grid of `DishCard` items with spice level indicators, veg marks, dual-language titles, prices, and `[Representative Image]` badges.
-   - Slide-out Order Tray drawer with live count and estimated total.
+   - Responsive grid of `MenuCard` items with spice level indicators, veg marks, dual-language titles, prices, and `[Representative Image]` badges.
 3. **`QrMenuPage.jsx` (`/qr-menu`)**:
    - Touch-first mobile QR menu designed for table/cabin guests.
    - Table/Cabin selector dropdown (`Cabin 1, 2, 3`, `Table 1-10`).
-   - Quick search and compact dish items with plus/minus quantity adjusters.
-   - Floating Order Summary bar and "Request Server / Call Captain" notification button.
+   - Quick search and compact dish items (browsing only, no checkout/cart).
+   - "Request Server / Call Captain" notification button with modal feedback.
 4. **`GalleryPage.jsx` (`/gallery`)**:
    - Showcases all 13 authentic photographs categorized into `All`, `Main Dining Hall`, `Seating & Cabins`, `Reception & Entrance`, `Lighting & Decor`, `Art & Murals`.
-   - Fullscreen `GalleryLightbox` modal with ESC key exit, zoom, and authenticity watermark.
+   - Fullscreen `Lightbox` modal with ESC key exit, zoom, and authenticity watermark.
 5. **`AboutPage.jsx` (`/about`)**:
    - Narrative of The Station Stories, railway heritage inspiration, and culinary mission.
    - Featured brand wall signage photo and architectural showcase.
@@ -235,18 +240,31 @@
    - Public digital receipt view fetched securely from `/api/v1/public/bill/view/{uuid}`.
    - Thermal receipt layout (80mm/58mm standard) with Print Receipt button (`window.print()`).
 
-### 4. Language & Typography Support
+### 4. Language, Typography & Motion Support
 - **Dual Language**: Seamless Hindi & English switcher with persistent `i18next` detection.
-- **Typography**: Google Fonts linked for `Playfair Display`, `Cormorant Garamond`, and `Inter`.
-- **Motion & Animations**: Supported via `framer-motion`, `gsap`, `embla-carousel-react`, and `lenis`.
+- **Typography**: Google Fonts linked for `Cormorant Garamond`, `Playfair Display`, `Manrope`, `DM Sans`, and `Noto Sans Devanagari`.
+- **Motion & Animations**: Supported via `framer-motion` (with `prefers-reduced-motion` safety), `gsap`, `embla-carousel-react`, and `lucide-react`.
 
-### 5. Build & Verification Results
-- **Production Build**: `npm run build` completed cleanly in 1.23s with 0 errors:
-  - `dist/index.html` (1.02 kB)
-  - `dist/assets/index.css` (39.46 kB)
-  - `dist/assets/index.js` (411.27 kB)
+### 5. Build & Live Route Verification Results
+- **Optimized Production Build**: `npm run build` completed cleanly in 1.22s with 0 errors and zero chunk size warnings:
+  - `dist/index.html` (1.40 kB)
+  - `dist/assets/index-CqEmfSuW.css` (43.68 kB)
+  - `dist/assets/vendor-icons-Cnq0dcb4.js` (22.88 kB)
+  - `dist/assets/vendor-motion-Don2PPzU.js` (143.66 kB)
+  - `dist/assets/vendor-react-nOh8J6eP.js` (162.27 kB)
+  - `dist/assets/index-DGOH8kgP.js` (234.32 kB)
 - **Vite Dev Server**: Serving hot-reloaded bundle on `http://127.0.0.1:5173/`.
-- **Static Assets**: Authentic photographs and food placeholders returning `200 OK`.
+- **Live HTTP Route Verification**:
+  - `GET /` -> `200 OK`
+  - `GET /menu` -> `200 OK`
+  - `GET /qr-menu` -> `200 OK`
+  - `GET /gallery` -> `200 OK`
+  - `GET /about` -> `200 OK`
+  - `GET /contact` -> `200 OK`
+  - `GET /bill/view/demo-123` -> `200 OK`
+  - `GET /images/restaurant/interior-main-hall.jpeg` -> `200 OK`
+  - `GET /images/branding/station-stories-signage.jpeg` -> `200 OK`
+  - `GET /images/food/biryani.webp` -> `200 OK`
 
 ---
 
