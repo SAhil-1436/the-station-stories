@@ -12,7 +12,8 @@ spring:
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:the_station_stories}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&characterEncoding=utf8
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:Sahil@123}
+    # DB_PASSWORD is strictly injected via environment variable; no fallback credentials
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -48,13 +49,16 @@ app:
       allowed-headers: "*"
       allow-credentials: true
     jwt:
-      secret: ${JWT_SECRET:TheStationStoriesSecretKeyForJwtSigningMustBeVeryLong2026SecureKeyWithAtLeast64Chars!}
+      # JWT_SECRET is strictly injected via environment variable; no fallback secrets
+      secret: ${JWT_SECRET}
       expiration-ms: ${JWT_EXPIRATION_MS:28800000}
 
-# Swagger UI
+# Swagger UI (Controlled via environment / active profile)
 springdoc:
   api-docs:
     path: /api-docs
+    enabled: ${SWAGGER_ENABLED:true}
   swagger-ui:
     path: /swagger-ui.html
+    enabled: ${SWAGGER_ENABLED:true}
     operations-sorter: method
