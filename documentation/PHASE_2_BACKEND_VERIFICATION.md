@@ -208,9 +208,9 @@ The application exposes **29 REST endpoints** across 5 controllers:
 | Scenario | Endpoint Tested | Expected | Actual Status | Result |
 |---|---|:---:|:---:|:---:|
 | Anonymous access to public API | `GET /api/v1/public/menu` | 200 OK | **200 OK** | **PASS** |
-| Anonymous access to POS API | `GET /api/v1/pos/bills` | 401 Unauthorized | **401 Unauthorized** (Clean JSON) | **PASS** |
+| Anonymous access to POS API | `GET /api/v1/pos/bills/1` | 401 Unauthorized | **401 Unauthorized** (Clean JSON) | **PASS** |
 | Anonymous access to Admin API | `GET /api/v1/admin/settings` | 401 Unauthorized | **401 Unauthorized** (Clean JSON) | **PASS** |
-| Invalid / Expired JWT token | `GET /api/v1/pos/bills` | 401 Unauthorized | **401 Unauthorized** (Clean JSON) | **PASS** |
+| Invalid / Expired JWT token | `GET /api/v1/pos/bills/1` | 401 Unauthorized | **401 Unauthorized** (Clean JSON) | **PASS** |
 | `ROLE_CASHIER` accessing POS API | `GET /api/v1/pos/customers/lookup` | 200 OK | **200 OK** | **PASS** |
 | `ROLE_CASHIER` accessing Admin API | `GET /api/v1/admin/settings` | 403 Forbidden | **403 Forbidden** (Clean JSON) | **PASS** |
 | `ROLE_CASHIER` cancelling bill | `POST /api/v1/admin/bills/2/cancel` | 403 Forbidden | **403 Forbidden** (Clean JSON) | **PASS** |
@@ -315,7 +315,7 @@ During the verification audit, two minor issues were identified and resolved wit
 ### Bug #1: Jackson Serialization Failure in `JwtAuthenticationEntryPoint`
 - **Issue**: `JwtAuthenticationEntryPoint` instantiated a raw `private final ObjectMapper objectMapper = new ObjectMapper();`. Because raw `new ObjectMapper()` does not auto-register `JavaTimeModule`, serializing `Instant` in `ErrorResponse` threw `InvalidDefinitionException: Java 8 date/time type java.time.Instant not supported by default`, causing Tomcat to serve its default HTML 401 error page instead of JSON.
 - **Fix Applied**: Injected Spring Boot's pre-configured `ObjectMapper` bean into `JwtAuthenticationEntryPoint` via constructor dependency injection.
-- **Verification**: Unauthorized requests to `/api/v1/pos/bills` now consistently return clean `401 Unauthorized` JSON:
+- **Verification**: Unauthorized requests to POS protected endpoints (e.g. `GET /api/v1/pos/bills/1`) now consistently return clean `401 Unauthorized` JSON:
   ```json
   {
     "success": false,
