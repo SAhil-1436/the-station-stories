@@ -29,6 +29,8 @@ public class CreateBillRequest {
 
     private String notes;
 
+    private String idempotencyKey;
+
     @NotEmpty(message = "At least one item is required in the bill")
     @Valid
     private List<BillItemRequest> items;
@@ -105,5 +107,13 @@ public class CreateBillRequest {
 
     public void setItems(List<BillItemRequest> items) {
         this.items = items;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 }

@@ -770,7 +770,7 @@ export default function SettingsPage() {
                   ) : (
                     <span className="text-body-muted flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-slate-300"></span>
-                      GST Disabled (Tax-Exempt)
+                      GST Disabled
                     </span>
                   )}
                 </span>

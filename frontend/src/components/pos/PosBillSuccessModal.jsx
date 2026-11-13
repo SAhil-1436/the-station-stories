@@ -186,7 +186,7 @@ export default function PosBillSuccessModal({
             <div className="flex justify-between text-body-muted">
               <span>GST / Tax:</span>
               <span className="font-mono text-emerald-600 font-semibold">
-                {formatINR(bill.totalTax || 0)} {bill.taxRate > 0 ? `(${bill.taxRate}%)` : '(Tax-Exempt)'}
+                {formatINR(bill.totalTax || 0)} {bill.taxRate > 0 ? `(${bill.taxRate}%)` : ''}
               </span>
             </div>
             <div className="flex justify-between items-baseline pt-2 border-t border-lavender-200 text-plum-royal">

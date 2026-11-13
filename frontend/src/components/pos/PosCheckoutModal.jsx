@@ -13,13 +13,12 @@ import {
   Phone,
   ShieldCheck,
   Info,
+  Server,
+  RefreshCw,
   Lock,
-  KeyRound,
-  RotateCcw,
 } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
 import * as posApi from '../../services/posApi';
-import * as authApi from '../../services/authApi';
 import {
   SUBMISSION_LIFECYCLE,
   classifyBillError,
@@ -27,20 +26,23 @@ import {
   getAmbiguousMarker,
   clearAmbiguousMarker,
   validateCashTender,
+  generateIdempotencyKey,
 } from '../../utils/submissionLifecycle';
 
 /**
- * POS Checkout & Payment Finalization Modal (Phase 5.3)
+ * POS Checkout & Payment Finalization Modal (Phase 5.3 Correction)
  *
  * Implements:
  * - Robust 5-state submission lifecycle: idle, submitting, succeeded, definitively_failed, ambiguous_outcome
  * - Multi-layer duplicate submission protection (ref lock, disabled buttons, Enter-key guard)
+ * - Unique idempotency key generated per order and sent via Idempotency-Key HTTP header
  * - Strict Cash Tender Validation (exact cash or >= bill total, prevents under-tender finalization)
  * - Mandatory cashier confirmations for Cash receipt, UPI verification, and Card terminal approval
  * - Ambiguous outcome lockout: blocks Escape, backdrop click, and close button
- * - Safe persistence of ambiguous markers across page refreshes / component re-renders
- * - In-app Manager Reconciliation Workflow (reconciles without cashier needing admin portal access)
- * - Locked Ivory + Royal Plum + Champagne Gold design system
+ * - Safe persistence of ambiguous markers with original idempotencyKey preserved
+ * - Authoritative backend-driven reconciliation via GET /api/v1/pos/bills/operations/{operationKey}
+ * - Zero fake BillResponse objects, zero unsafe client-side manual unlocks
+ * - Ivory + Royal Plum + Champagne Gold design system
  */
 export default function PosCheckoutModal({
   isOpen,
@@ -73,15 +75,13 @@ export default function PosCheckoutModal({
   const [errorMessage, setErrorMessage] = useState(null);
   const [ambiguousMarkerData, setAmbiguousMarkerData] = useState(null);
 
-  // Manager Reconciliation State
-  const [showManagerAuth, setShowManagerAuth] = useState(false);
-  const [managerUsername, setManagerUsername] = useState('');
-  const [managerPassword, setManagerPassword] = useState('');
-  const [managerAuthError, setManagerAuthError] = useState(null);
-  const [isVerifyingManager, setIsVerifyingManager] = useState(false);
-  const [managerVerified, setManagerVerified] = useState(false);
-  const [confirmedBillNumberInput, setConfirmedBillNumberInput] = useState('');
+  // Idempotency Key
+  const [activeIdempotencyKey, setActiveIdempotencyKey] = useState('');
+
+  // Backend Reconciliation State
   const [reconcileLoading, setReconcileLoading] = useState(false);
+  const [reconcileError, setReconcileError] = useState(null);
+  const [reconcileFeedback, setReconcileFeedback] = useState(null);
 
   // Synchronous ref-based submit lock
   const isSubmittingRef = useRef(false);
@@ -90,11 +90,12 @@ export default function PosCheckoutModal({
   useEffect(() => {
     if (isOpen) {
       const existingMarker = getAmbiguousMarker();
-      if (existingMarker) {
+      if (existingMarker && (existingMarker.idempotencyKey || existingMarker.clientReferenceId)) {
         setSubmissionState(SUBMISSION_LIFECYCLE.AMBIGUOUS_OUTCOME);
         setAmbiguousMarkerData(existingMarker);
+        setActiveIdempotencyKey(existingMarker.idempotencyKey || existingMarker.clientReferenceId);
       } else {
-        // Reset only if not ambiguous
+        // Fresh checkout session: generate a fresh unique idempotency key
         setPaymentMethod('CASH');
         setCashConfirmed(false);
         setCashTendered('');
@@ -104,9 +105,9 @@ export default function PosCheckoutModal({
         setSubmissionState(SUBMISSION_LIFECYCLE.IDLE);
         setErrorMessage(null);
         setAmbiguousMarkerData(null);
-        setShowManagerAuth(false);
-        setManagerVerified(false);
-        setConfirmedBillNumberInput('');
+        setReconcileError(null);
+        setReconcileFeedback(null);
+        setActiveIdempotencyKey(generateIdempotencyKey());
       }
       isSubmittingRef.current = false;
     }
@@ -165,10 +166,10 @@ export default function PosCheckoutModal({
     !isCartEmpty &&
     !isDineInMissingTable &&
     isConfirmationSatisfied() &&
-    submissionState === SUBMISSION_LIFECYCLE.IDLE &&
+    (submissionState === SUBMISSION_LIFECYCLE.IDLE || submissionState === SUBMISSION_LIFECYCLE.DEFINITIVELY_FAILED) &&
     !isSubmittingRef.current;
 
-  // Handle Bill Finalization Submission
+  // Handle Bill Finalization Submission with Idempotency Protection
   const handleFinalizeBill = async (e) => {
     if (e) {
       e.preventDefault();
@@ -189,8 +190,13 @@ export default function PosCheckoutModal({
     setSubmissionState(SUBMISSION_LIFECYCLE.SUBMITTING);
     setErrorMessage(null);
 
+    // Ensure collision-resistant idempotency key exists
+    const keyToUse = activeIdempotencyKey || generateIdempotencyKey();
+    if (!activeIdempotencyKey) {
+      setActiveIdempotencyKey(keyToUse);
+    }
+
     // Build authoritative CreateBillRequest payload (never sending client prices)
-    const clientRef = `REQ-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const billPayload = {
       orderType: orderType,
       cabinTableRef: orderType === 'DINE_IN' ? cabinTableRef.trim() : null,
@@ -208,7 +214,7 @@ export default function PosCheckoutModal({
     };
 
     try {
-      const response = await posApi.createPosBill(billPayload);
+      const response = await posApi.createPosBill(billPayload, keyToUse);
       isSubmittingRef.current = false;
       setSubmissionState(SUBMISSION_LIFECYCLE.SUCCEEDED);
       clearAmbiguousMarker();
@@ -219,9 +225,9 @@ export default function PosCheckoutModal({
       const classification = classifyBillError(err);
 
       if (classification === SUBMISSION_LIFECYCLE.AMBIGUOUS_OUTCOME) {
-        // Save minimal safe marker (no tokens, no credentials)
+        // Save minimal safe marker preserving original idempotency key (no tokens, no credentials)
         const marker = saveAmbiguousMarker({
-          clientReferenceId: clientRef,
+          idempotencyKey: keyToUse,
           orderType,
           cabinTableRef: orderType === 'DINE_IN' ? cabinTableRef.trim() : null,
           itemCount: cart.reduce((s, i) => s + i.quantity, 0),
@@ -241,86 +247,57 @@ export default function PosCheckoutModal({
     }
   };
 
-  // Manager Authentication for Cashier Reconciliation
-  const handleVerifyManagerCredentials = async (e) => {
-    e.preventDefault();
-    setManagerAuthError(null);
-    if (!managerUsername.trim() || !managerPassword) {
-      setManagerAuthError('Manager username and password are required.');
+  // Authoritative Backend-Safe Reconciliation
+  const handleReconcileWithBackend = async () => {
+    if (!activeIdempotencyKey) {
+      setReconcileError('No active operation key found to reconcile.');
       return;
     }
 
-    setIsVerifyingManager(true);
-    try {
-      // Authenticate manager credentials against auth endpoint
-      const res = await authApi.login(managerUsername.trim(), managerPassword);
-      if (res && res.user && res.user.roles && res.user.roles.includes('ROLE_ADMIN')) {
-        setManagerVerified(true);
-        setShowManagerAuth(false);
-      } else {
-        setManagerAuthError('The provided credentials do not possess Manager/Admin authority.');
-      }
-    } catch (err) {
-      setManagerAuthError(err.message || 'Invalid manager credentials.');
-    } finally {
-      setIsVerifyingManager(false);
-    }
-  };
-
-  // Manager Reconciliation Action: Confirm NOT Created -> Safe to Discard / Retry
-  const handleManagerConfirmNotCreated = () => {
-    clearAmbiguousMarker();
-    setAmbiguousMarkerData(null);
-    setSubmissionState(SUBMISSION_LIFECYCLE.DEFINITIVELY_FAILED);
-    setErrorMessage(
-      'Manager verified that no bill was generated in the database. You may now modify the order or retry.'
-    );
-    isSubmittingRef.current = false;
-    setShowManagerAuth(false);
-    setManagerVerified(false);
-  };
-
-  // Manager Reconciliation Action: Bill Was Created -> Link and Complete
-  const handleManagerLinkExistingBill = async () => {
-    if (!confirmedBillNumberInput.trim()) {
-      setManagerAuthError('Please enter the confirmed bill number or ID.');
-      return;
-    }
     setReconcileLoading(true);
+    setReconcileError(null);
+    setReconcileFeedback(null);
+
     try {
-      // Attempt to look up the bill by ID or pass mock linked response
-      const billId = confirmedBillNumberInput.trim().replace(/\D/g, '');
-      let foundBill = null;
-      if (billId) {
-        try {
-          foundBill = await posApi.getPosBillById(billId);
-        } catch {
-          // Fall back if bill number format was entered
-        }
+      const result = await posApi.getBillOperationStatus(activeIdempotencyKey);
+
+      if (!result) {
+        throw new Error('Received empty response from server reconciliation endpoint.');
       }
 
-      clearAmbiguousMarker();
-      setAmbiguousMarkerData(null);
-      setSubmissionState(SUBMISSION_LIFECYCLE.SUCCEEDED);
-
-      if (foundBill) {
-        onBillSuccess(foundBill);
+      if (result.status === 'SUCCEEDED' && result.bill) {
+        // Authoritative bill creation confirmed by backend
+        clearAmbiguousMarker();
+        setAmbiguousMarkerData(null);
+        setSubmissionState(SUBMISSION_LIFECYCLE.SUCCEEDED);
+        isSubmittingRef.current = false;
+        // Pass the REAL authoritative BillResponse from the backend (no fake fallback!)
+        onBillSuccess(result.bill);
+      } else if (result.status === 'DEFINITIVELY_FAILED') {
+        // Backend confirmed operation definitively failed (e.g. stock issue)
+        clearAmbiguousMarker();
+        setAmbiguousMarkerData(null);
+        setSubmissionState(SUBMISSION_LIFECYCLE.DEFINITIVELY_FAILED);
+        setErrorMessage(result.message || 'Server confirmed the bill creation failed. No bill was recorded in the database.');
+        // Generate new key for subsequent fresh attempt
+        setActiveIdempotencyKey(generateIdempotencyKey());
+        isSubmittingRef.current = false;
+      } else if (result.status === 'NOT_FOUND') {
+        // Backend confirmed no operation was accepted or committed for this key
+        clearAmbiguousMarker();
+        setAmbiguousMarkerData(null);
+        setSubmissionState(SUBMISSION_LIFECYCLE.DEFINITIVELY_FAILED);
+        setErrorMessage('Server confirmed: No bill was recorded or accepted for this operation key. Counter unlocked. You may modify the order or resubmit.');
+        setActiveIdempotencyKey(generateIdempotencyKey());
+        isSubmittingRef.current = false;
+      } else if (result.status === 'PROCESSING') {
+        // Still processing on the server
+        setReconcileFeedback('Bill creation is currently processing on the server. Please wait a moment and click Reconcile again.');
       } else {
-        // Construct fallback linked bill response
-        onBillSuccess({
-          billNumber: confirmedBillNumberInput.trim(),
-          paymentStatus: 'PAID',
-          paymentMethod: paymentMethod,
-          grandTotal: payableTotal,
-          subtotal: subtotal,
-          orderType: orderType,
-          cabinTableRef: cabinTableRef,
-          customerName: customerName,
-          customerPhone: customerPhone,
-        });
+        setReconcileFeedback(`Server returned status: ${result.status}. Transaction remains locked for safety.`);
       }
     } catch (err) {
-      setManagerAuthError(err.message || 'Failed to link confirmed bill.');
+      setReconcileError(err.message || 'Failed to reach server to reconcile bill status. Counter remains locked.');
     } finally {
       setReconcileLoading(false);
     }
@@ -332,8 +309,6 @@ export default function PosCheckoutModal({
   const isDismissible =
     submissionState !== SUBMISSION_LIFECYCLE.SUBMITTING &&
     submissionState !== SUBMISSION_LIFECYCLE.AMBIGUOUS_OUTCOME;
-
-  const isManagerAuthorized = isAdmin || managerVerified;
 
   return (
     <div
@@ -372,7 +347,7 @@ export default function PosCheckoutModal({
               </h2>
               <p className="text-[11px] text-body-muted">
                 {submissionState === SUBMISSION_LIFECYCLE.AMBIGUOUS_OUTCOME
-                  ? 'Unresolved server status requires manager reconciliation'
+                  ? 'Unresolved server status requires backend reconciliation'
                   : 'Authoritative sequence bill generation (Phase 5.3)'}
               </p>
             </div>
@@ -405,21 +380,25 @@ export default function PosCheckoutModal({
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-2">
                 <div className="font-bold flex items-center gap-2 text-sm text-amber-900">
                   <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0" />
-                  <span>Transaction Status Unknown — Submission Locked</span>
+                  <span>Transaction Status Unknown — Counter Locked</span>
                 </div>
                 <p className="leading-relaxed">
-                  A network timeout, connection reset, or server interruption occurred during bill finalization.
+                  A network timeout, connection reset, or server error occurred during bill finalization.
                   The backend database <strong>may or may not</strong> have committed this bill.
                 </p>
                 <div className="p-2.5 rounded-xl bg-white/80 border border-amber-200 text-amber-900 space-y-1">
-                  <div className="font-semibold text-amber-950">Pending Order Marker Snapshot:</div>
+                  <div className="font-semibold text-amber-950">Pending Operation Snapshot:</div>
+                  <div className="flex justify-between">
+                    <span>Operation Key:</span>
+                    <span className="font-mono font-bold text-plum-royal text-[11px]">{activeIdempotencyKey}</span>
+                  </div>
                   <div className="flex justify-between">
                     <span>Order Type:</span>
-                    <span className="font-bold">{ambiguousMarkerData?.orderType} {ambiguousMarkerData?.cabinTableRef ? `(${ambiguousMarkerData.cabinTableRef})` : ''}</span>
+                    <span className="font-bold">{ambiguousMarkerData?.orderType || orderType} {ambiguousMarkerData?.cabinTableRef ? `(${ambiguousMarkerData.cabinTableRef})` : ''}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Items:</span>
-                    <span>{ambiguousMarkerData?.itemCount || cart.length} line items</span>
+                    <span>{ambiguousMarkerData?.itemCount || cart.reduce((s, i) => s + i.quantity, 0)} line items</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Estimated Total:</span>
@@ -430,133 +409,64 @@ export default function PosCheckoutModal({
                     <span>{ambiguousMarkerData?.paymentMethod || paymentMethod}</span>
                   </div>
                   <div className="flex justify-between text-[10px] text-amber-800 pt-1 border-t border-amber-100">
-                    <span>Reference:</span>
-                    <span className="font-mono">{ambiguousMarkerData?.clientReferenceId}</span>
+                    <span>Timestamp:</span>
+                    <span>{ambiguousMarkerData?.timestamp ? new Date(ambiguousMarkerData.timestamp).toLocaleTimeString() : 'Recent'}</span>
                   </div>
                 </div>
                 <div className="text-[11px] font-semibold text-amber-900 pt-1">
-                  ⚠️ Protection Active: Escape key, backdrop click, and re-submission are blocked to prevent duplicate billing.
+                  ⚠️ Counter Lockout Active: To prevent duplicate billing, modal dismissal and re-submission are blocked until the server confirms the transaction status.
                 </div>
               </div>
 
-              {/* Reconciliation Path */}
+              {/* Authoritative Backend Reconciliation Card */}
               <div className="p-4 rounded-2xl bg-white border border-lavender-200 shadow-xs space-y-3">
                 <div className="font-serif font-bold text-sm text-plum-royal flex items-center gap-2">
-                  <KeyRound className="w-4 h-4 text-gold" />
-                  <span>Manager Reconciliation Authorization</span>
+                  <Server className="w-4 h-4 text-gold" />
+                  <span>Authoritative Backend Reconciliation</span>
                 </div>
 
-                {!isManagerAuthorized ? (
-                  <div className="space-y-2 text-xs">
-                    <p className="text-body-muted">
-                      Cashier accounts cannot view admin audit logs. An authorized Restaurant Manager or Administrator must verify whether the bill was committed.
-                    </p>
-                    {!showManagerAuth ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowManagerAuth(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-plum-royal text-ivory text-xs font-semibold hover:bg-plum-dark transition-all shadow-xs"
-                      >
-                        <Lock className="w-3.5 h-3.5 text-gold" />
-                        <span>Authorize with Manager Credentials</span>
-                      </button>
-                    ) : (
-                      <form onSubmit={handleVerifyManagerCredentials} className="p-3 rounded-xl bg-lavender-50 border border-lavender-200 space-y-2.5">
-                        <div className="font-semibold text-plum-royal text-[11px]">Enter Manager / Admin Credentials:</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            placeholder="Manager Username"
-                            value={managerUsername}
-                            onChange={(e) => setManagerUsername(e.target.value)}
-                            className="bg-white border border-lavender-200 rounded-lg px-2.5 py-1 text-xs"
-                          />
-                          <input
-                            type="password"
-                            placeholder="Manager Password"
-                            value={managerPassword}
-                            onChange={(e) => setManagerPassword(e.target.value)}
-                            className="bg-white border border-lavender-200 rounded-lg px-2.5 py-1 text-xs"
-                          />
-                        </div>
-                        {managerAuthError && (
-                          <div className="text-[11px] text-red-600 font-semibold">{managerAuthError}</div>
-                        )}
-                        <div className="flex gap-2 justify-end pt-1">
-                          <button
-                            type="button"
-                            onClick={() => setShowManagerAuth(false)}
-                            className="px-3 py-1 rounded-lg border border-lavender-200 text-[11px]"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="submit"
-                            disabled={isVerifyingManager}
-                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-plum-royal text-white text-[11px] font-semibold"
-                          >
-                            {isVerifyingManager && <Loader2 className="w-3 h-3 animate-spin" />}
-                            <span>Verify Authority</span>
-                          </button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-                ) : (
-                  /* Manager Verified: Authoritative Resolution Options */
-                  <div className="space-y-3 pt-1 text-xs">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-semibold">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Manager Authority Verified</span>
-                    </div>
+                <p className="text-xs text-body-muted leading-relaxed">
+                  Click the button below to query the authoritative backend reconciliation endpoint (<code>GET /api/v1/pos/bills/operations/{'{operationKey}'}</code>).
+                  If the server recorded the bill, it will be retrieved and linked. If the server confirms no bill exists, the counter will be safely unlocked.
+                </p>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                      {/* Option A: Bill Was Created */}
-                      <div className="p-3 rounded-xl bg-lavender-50 border border-lavender-200 space-y-2">
-                        <div className="font-bold text-plum-royal text-xs">
-                          Option A: Bill Was Created
-                        </div>
-                        <p className="text-[10px] text-body-muted">
-                          Manager confirmed the bill exists in server records. Enter bill number or ID to link:
-                        </p>
-                        <input
-                          type="text"
-                          placeholder="e.g. TSS-20261113-0001 or ID"
-                          value={confirmedBillNumberInput}
-                          onChange={(e) => setConfirmedBillNumberInput(e.target.value)}
-                          className="w-full bg-white border border-lavender-200 rounded-lg px-2 py-1 text-xs font-mono"
-                        />
-                        <button
-                          type="button"
-                          disabled={reconcileLoading || !confirmedBillNumberInput.trim()}
-                          onClick={handleManagerLinkExistingBill}
-                          className="w-full py-1.5 rounded-lg bg-emerald-700 text-white font-semibold text-xs hover:bg-emerald-800 disabled:opacity-40"
-                        >
-                          {reconcileLoading ? 'Linking...' : 'Link & Complete Bill'}
-                        </button>
-                      </div>
-
-                      {/* Option B: Confirmed NOT Created */}
-                      <div className="p-3 rounded-xl bg-lavender-50 border border-lavender-200 space-y-2 flex flex-col justify-between">
-                        <div>
-                          <div className="font-bold text-plum-royal text-xs">
-                            Option B: Confirmed NOT Created
-                          </div>
-                          <p className="text-[10px] text-body-muted mt-1">
-                            Manager verified on backend/database that no bill was generated. Safely unlock counter to allow re-submission.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleManagerConfirmNotCreated}
-                          className="w-full py-1.5 rounded-lg bg-amber-600 text-white font-semibold text-xs hover:bg-amber-700"
-                        >
-                          Unlock Counter & Discard Lock
-                        </button>
-                      </div>
-                    </div>
+                {reconcileFeedback && (
+                  <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-start gap-2">
+                    <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div className="leading-relaxed">{reconcileFeedback}</div>
                   </div>
                 )}
+
+                {reconcileError && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    <div className="leading-relaxed">{reconcileError}</div>
+                  </div>
+                )}
+
+                <div className="pt-2 flex flex-col sm:flex-row items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={reconcileLoading}
+                    onClick={handleReconcileWithBackend}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-plum-royal hover:bg-plum-dark text-white text-xs font-semibold shadow-soft transition-all disabled:opacity-50 active:scale-95 cursor-pointer"
+                  >
+                    {reconcileLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-gold" />
+                        <span>Querying Server Status...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 text-gold" />
+                        <span>Query Backend Reconciliation Status</span>
+                      </>
+                    )}
+                  </button>
+                  <span className="text-[11px] text-body-muted text-center sm:text-left">
+                    Operator: <strong>{user?.fullName || user?.username || 'Counter Staff'}</strong>
+                  </span>
+                </div>
               </div>
             </div>
           ) : (
@@ -917,7 +827,7 @@ export default function PosCheckoutModal({
                   <span className="font-mono text-body">₹0.00</span>
                 </div>
                 <div className="flex justify-between text-body-muted">
-                  <span>Tax (GST Disabled - Tax-Exempt):</span>
+                  <span>Tax (GST Disabled):</span>
                   <span className="font-mono text-emerald-600 font-semibold">₹0.00</span>
                 </div>
                 <div className="flex justify-between items-baseline pt-2 border-t border-lavender-200 font-bold text-plum-royal">

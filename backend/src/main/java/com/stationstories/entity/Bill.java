@@ -21,6 +21,9 @@ public class Bill {
     @Column(name = "invoice_uuid", nullable = false, unique = true, length = 64)
     private String invoiceUuid;
 
+    @Column(name = "idempotency_key", unique = true, length = 100)
+    private String idempotencyKey;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "order_type", nullable = false, length = 20)
     private OrderType orderType = OrderType.DINE_IN;
@@ -168,6 +171,14 @@ public class Bill {
 
     public void setInvoiceUuid(String invoiceUuid) {
         this.invoiceUuid = invoiceUuid;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 
     public OrderType getOrderType() {

@@ -8,8 +8,7 @@ import html2canvas from 'html2canvas';
  * - Independent of physical printers / print dialogs.
  * - 58mm width standard continuous roll.
  * - Dynamic height according to content length (zero blank pages, no clipping).
- * - Full Unicode font support (handles Hindi Devanagari and English simultaneously).
- * - Monospaced receipt typography with clean borders and right-aligned financial amounts.
+ * - English text only with clean monospaced receipt typography and right-aligned financial amounts.
  * - Authoritative totals from ThermalReceiptResponse (never frontend overrides).
  * - Meaningful filename: TSS-BILL-{billNumber}.pdf
  */
@@ -33,7 +32,7 @@ function createReceiptElement(receipt) {
   container.style.width = '200px';
   container.style.backgroundColor = '#ffffff';
   container.style.color = '#000000';
-  container.style.fontFamily = "'Courier New', Courier, 'Noto Sans Devanagari', monospace";
+  container.style.fontFamily = "'Courier New', Courier, monospace, Arial, sans-serif";
   container.style.fontSize = '9px';
   container.style.lineHeight = '1.25';
   container.style.padding = '8px 6px';
@@ -126,12 +125,7 @@ function createReceiptElement(receipt) {
           <span>TAX (${receipt.taxRate}%):</span>
           <span>${formatINR(receipt.totalTax)}</span>
         </div>
-      ` : `
-        <div style="display: flex; justify-content: space-between; color: #555; font-size: 7.5px; margin-bottom: 1px;">
-          <span>TAX:</span>
-          <span>Tax-Exempt</span>
-        </div>
-      `}
+      ` : ''}
       <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10.5px; border-top: 1px solid #222; padding-top: 3px; margin-top: 2px;">
         <span>TOTAL:</span>
         <span>${formatINR(receipt.grandTotal)}</span>

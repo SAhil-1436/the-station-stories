@@ -38,12 +38,28 @@ export const lookupCustomer = async (phone) => {
 };
 
 /**
- * Creates and authoritatively finalizes a POS bill
+ * Creates and authoritatively finalizes a POS bill with idempotency protection
  * @param {Object} billData CreateBillRequest payload
+ * @param {string} [idempotencyKey] Unique client-generated idempotency key
  * @returns {Promise<Object>} BillResponse object
  */
-export const createPosBill = async (billData) => {
-  const response = await api.post('/api/v1/pos/bills', billData);
+export const createPosBill = async (billData, idempotencyKey) => {
+  const headers = {};
+  if (idempotencyKey) {
+    headers['Idempotency-Key'] = idempotencyKey;
+    billData = { ...billData, idempotencyKey };
+  }
+  const response = await api.post('/api/v1/pos/bills', billData, { headers });
+  return response.data;
+};
+
+/**
+ * Reconciles status of a bill-creation operation by idempotency key
+ * @param {string} operationKey Unique operation/idempotency key
+ * @returns {Promise<{operationKey: string, status: string, message: string, bill: Object|null, createdAt: string}>} BillOperationResponse
+ */
+export const getBillOperationStatus = async (operationKey) => {
+  const response = await api.get(`/api/v1/pos/bills/operations/${encodeURIComponent(operationKey)}`);
   return response.data;
 };
 

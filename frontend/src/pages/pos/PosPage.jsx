@@ -178,7 +178,7 @@ export default function PosPage() {
     const subtotal = subtotalPaise / 100;
     const discountPaise = 0; // Phase 5.2 discount feature (NONE)
     const discount = discountPaise / 100;
-    const taxPaise = 0; // GST disabled / Tax-Exempt
+    const taxPaise = 0; // GST disabled
     const tax = taxPaise / 100;
     const payablePaise = subtotalPaise - discountPaise + taxPaise;
     const payableTotal = payablePaise / 100;
@@ -1056,7 +1056,7 @@ export default function PosPage() {
               <span className="flex items-center gap-1">
                 <span>Tax</span>
                 <span className="text-[10px] px-1 rounded bg-lavender-200 text-plum-royal font-medium">
-                  GST Disabled (Tax-Exempt)
+                  GST Disabled
                 </span>
               </span>
               <span className="font-mono text-emerald-600 font-semibold">₹0.00</span>

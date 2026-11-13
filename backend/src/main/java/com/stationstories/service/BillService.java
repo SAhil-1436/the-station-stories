@@ -9,6 +9,7 @@ import com.stationstories.entity.enums.WhatsAppDeliveryStatus;
 import com.stationstories.exception.BusinessException;
 import com.stationstories.exception.ResourceNotFoundException;
 import com.stationstories.repository.BillNumberSequenceRepository;
+import com.stationstories.repository.BillOperationRepository;
 import com.stationstories.repository.BillRepository;
 import com.stationstories.repository.MenuItemRepository;
 import org.slf4j.Logger;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,12 +25,14 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -43,6 +47,7 @@ public class BillService {
     private final CustomerService customerService;
     private final RestaurantSettingService settingService;
     private final AuditLogService auditLogService;
+    private final BillOperationRepository billOperationRepository;
 
     @Value("${app.public-url:http://localhost:5173}")
     private String publicBaseUrl;
@@ -52,24 +57,86 @@ public class BillService {
                        MenuItemRepository menuItemRepository,
                        CustomerService customerService,
                        RestaurantSettingService settingService,
-                       AuditLogService auditLogService) {
+                       AuditLogService auditLogService,
+                       BillOperationRepository billOperationRepository) {
         this.billRepository = billRepository;
         this.sequenceRepository = sequenceRepository;
         this.menuItemRepository = menuItemRepository;
         this.customerService = customerService;
         this.settingService = settingService;
         this.auditLogService = auditLogService;
+        this.billOperationRepository = billOperationRepository;
     }
 
     @Transactional
     public BillResponse createBill(CreateBillRequest request, User cashier) {
+        return createBill(request, cashier, null);
+    }
+
+    @Transactional
+    public BillResponse createBill(CreateBillRequest request, User cashier, String idempotencyKey) {
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new BusinessException("Cannot create an empty bill. At least one dish item is required.");
         }
 
         RestaurantSetting settings = settingService.getOrCreateSettings();
 
-        // 1. Process items and validate availability on the backend
+        // 1. Resolve and validate idempotency key
+        String effectiveKey = null;
+        if (idempotencyKey != null && !idempotencyKey.trim().isEmpty()) {
+            effectiveKey = idempotencyKey.trim();
+        } else if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().trim().isEmpty()) {
+            effectiveKey = request.getIdempotencyKey().trim();
+        }
+
+        BillOperation operation = null;
+
+        if (effectiveKey != null) {
+            // Check if bill with this idempotency key already committed
+            Optional<Bill> existingBill = billRepository.findByIdempotencyKey(effectiveKey);
+            if (existingBill.isPresent()) {
+                log.info("Idempotent bill creation: existing bill #{} returned for key {}",
+                        existingBill.get().getBillNumber(), effectiveKey);
+                return mapToResponse(existingBill.get(), settings);
+            }
+
+            // Check if an operation record already exists
+            Optional<BillOperation> existingOp = billOperationRepository.findByOperationKey(effectiveKey);
+            if (existingOp.isPresent()) {
+                BillOperation op = existingOp.get();
+                if (BillOperation.STATUS_SUCCEEDED.equals(op.getStatus()) && op.getBill() != null) {
+                    log.info("Idempotent bill operation: already succeeded with bill #{} for key {}",
+                            op.getBill().getBillNumber(), effectiveKey);
+                    return mapToResponse(op.getBill(), settings);
+                } else if (BillOperation.STATUS_PROCESSING.equals(op.getStatus())) {
+                    if (Duration.between(op.getCreatedAt(), Instant.now()).getSeconds() > 60) {
+                        op.setStatus(BillOperation.STATUS_DEFINITIVELY_FAILED);
+                        op.setErrorMessage("Prior operation timed out with no bill committed");
+                        billOperationRepository.save(op);
+                    } else {
+                        throw new BusinessException("Bill creation for this operation key is currently processing. Please wait or query operation status.");
+                    }
+                } else if (BillOperation.STATUS_DEFINITIVELY_FAILED.equals(op.getStatus())) {
+                    throw new BusinessException("Bill creation for this operation key previously failed: " + op.getErrorMessage());
+                }
+            } else {
+                operation = new BillOperation(effectiveKey, cashier, BillOperation.STATUS_PROCESSING);
+                try {
+                    BillOperation registered = billOperationRepository.saveAndFlush(operation);
+                    if (registered != null) {
+                        operation = registered;
+                    }
+                } catch (Exception ex) {
+                    Optional<Bill> concurrentBill = billRepository.findByIdempotencyKey(effectiveKey);
+                    if (concurrentBill.isPresent()) {
+                        return mapToResponse(concurrentBill.get(), settings);
+                    }
+                    throw new BusinessException("Concurrent bill creation request detected with duplicate idempotency key.");
+                }
+            }
+        }
+
+        // 2. Process items and validate availability on the backend
         List<BillItem> billItems = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
 
@@ -157,6 +224,7 @@ public class BillService {
         Bill bill = new Bill();
         bill.setBillNumber(billNumber);
         bill.setInvoiceUuid(invoiceUuid);
+        bill.setIdempotencyKey(effectiveKey);
         bill.setOrderType(request.getOrderType());
         bill.setCabinTableRef(request.getCabinTableRef() != null ? request.getCabinTableRef().trim() : null);
         bill.setCashier(cashier);
@@ -200,11 +268,70 @@ public class BillService {
 
         Bill saved = billRepository.save(bill);
 
+        if (operation != null) {
+            operation.setStatus(BillOperation.STATUS_SUCCEEDED);
+            operation.setBill(saved);
+            billOperationRepository.save(operation);
+        }
+
         auditLogService.recordEvent("BILL", saved.getId(), "BILL_CREATED", cashier,
                 null, "Created bill " + saved.getBillNumber() + " (Total: ₹" + saved.getGrandTotal() + ")", null);
 
         log.info("Generated Bill #{} with UUID {} for ₹{}", saved.getBillNumber(), saved.getInvoiceUuid(), saved.getGrandTotal());
         return mapToResponse(saved, settings);
+    }
+
+    @Transactional(readOnly = true)
+    public BillOperationResponse reconcileOperation(String operationKey, User currentUser) {
+        if (operationKey == null || operationKey.trim().isEmpty()) {
+            return BillOperationResponse.notFound(operationKey);
+        }
+
+        String key = operationKey.trim();
+        RestaurantSetting settings = settingService.getOrCreateSettings();
+
+        // 1. Check if a bill exists with this idempotency key
+        Optional<Bill> billOpt = billRepository.findByIdempotencyKey(key);
+        if (billOpt.isPresent()) {
+            Bill bill = billOpt.get();
+            verifyOperationAccess(bill.getCashier(), currentUser);
+            return BillOperationResponse.succeeded(key, mapToResponse(bill, settings), bill.getCreatedAt());
+        }
+
+        // 2. Check if a bill operation record exists
+        Optional<BillOperation> opOpt = billOperationRepository.findByOperationKey(key);
+        if (opOpt.isPresent()) {
+            BillOperation op = opOpt.get();
+            verifyOperationAccess(op.getCashier(), currentUser);
+
+            if (BillOperation.STATUS_SUCCEEDED.equals(op.getStatus()) && op.getBill() != null) {
+                return BillOperationResponse.succeeded(key, mapToResponse(op.getBill(), settings), op.getCreatedAt());
+            }
+
+            if (BillOperation.STATUS_PROCESSING.equals(op.getStatus())) {
+                if (Duration.between(op.getCreatedAt(), Instant.now()).getSeconds() > 60) {
+                    return BillOperationResponse.definitivelyFailed(key, "Operation timed out with no bill committed", op.getCreatedAt());
+                }
+                return BillOperationResponse.processing(key, op.getCreatedAt());
+            }
+
+            if (BillOperation.STATUS_DEFINITIVELY_FAILED.equals(op.getStatus())) {
+                return BillOperationResponse.definitivelyFailed(key, op.getErrorMessage(), op.getCreatedAt());
+            }
+        }
+
+        // 3. No bill and no operation record found
+        return BillOperationResponse.notFound(key);
+    }
+
+    private void verifyOperationAccess(User operationCashier, User currentUser) {
+        if (currentUser == null) return;
+        boolean isAdmin = currentUser.getRoles() != null && currentUser.getRoles().stream()
+                .anyMatch(r -> "ROLE_ADMIN".equals(r.getName()));
+        if (!isAdmin && operationCashier != null && !operationCashier.getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException(
+                    "Unauthorized to access operation record belonging to another cashier.");
+        }
     }
 
     @Transactional(readOnly = true)

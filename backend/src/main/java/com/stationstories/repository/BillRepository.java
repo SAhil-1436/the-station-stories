@@ -21,6 +21,8 @@ public interface BillRepository extends JpaRepository<Bill, Long> {
 
     Optional<Bill> findByBillNumber(String billNumber);
 
+    Optional<Bill> findByIdempotencyKey(String idempotencyKey);
+
     List<Bill> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
 
     @Query("SELECT b FROM Bill b WHERE " +

@@ -291,11 +291,11 @@ export default function PosReceiptPreviewModal({
                       Tel: {receiptData.phone}
                     </div>
                   )}
-                  <div className="text-[10px] font-semibold text-zinc-700 pt-0.5">
-                    {isFinalized && receiptData.gstin
-                      ? `GSTIN: ${receiptData.gstin}`
-                      : 'GSTIN: Tax-Exempt / Composition'}
-                  </div>
+                  {isFinalized && receiptData.gstin && (
+                    <div className="text-[10px] font-semibold text-zinc-700 pt-0.5">
+                      GSTIN: {receiptData.gstin}
+                    </div>
+                  )}
                 </div>
 
                 {/* Metadata */}
@@ -405,7 +405,7 @@ export default function PosReceiptPreviewModal({
                   )}
                   <div className="flex justify-between text-zinc-500">
                     <span>
-                      GST {isFinalized && receiptData.taxRate > 0 ? `(${receiptData.taxRate}%)` : '(Tax-Exempt)'}:
+                      GST {isFinalized && receiptData.taxRate > 0 ? `(${receiptData.taxRate}%)` : ''}:
                     </span>
                     <span>
                       {formatCurrency(isFinalized ? receiptData.totalTax : tax)}
@@ -418,16 +418,6 @@ export default function PosReceiptPreviewModal({
                     </span>
                   </div>
                 </div>
-
-                {/* UPI QR string / payment note */}
-                {isFinalized && receiptData.upiQrString && (
-                  <div className="py-2 border-b border-dashed border-zinc-400 text-center space-y-1 text-[9px] text-zinc-600">
-                    <div className="font-semibold uppercase tracking-wider">UPI PAYMENT QR DATA</div>
-                    <div className="font-mono text-[8px] break-all bg-zinc-50 p-1 rounded border border-zinc-200">
-                      {receiptData.upiQrString}
-                    </div>
-                  </div>
-                )}
 
                 {/* Footer Notice */}
                 <div className="pt-3 text-center space-y-0.5 text-[10px] text-zinc-700">
@@ -456,7 +446,7 @@ export default function PosReceiptPreviewModal({
             {printedFeedback && (
               <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Sent to printer queue
+                Opening browser print dialog...
               </span>
             )}
             {pdfSuccess && (

@@ -67,15 +67,28 @@ export function classifyBillError(err) {
 }
 
 /**
+ * Generates a collision-resistant idempotency key for bill creation attempts
+ * @returns {string} Unique idempotency key
+ */
+export function generateIdempotencyKey() {
+  const ts = Date.now();
+  const rand = Math.random().toString(36).substring(2, 10);
+  return `IDEMP-${ts}-${rand}`;
+}
+
+/**
  * Saves a minimal, safe marker for an ambiguous bill submission.
+ * Preserves the original idempotencyKey to prevent duplicate creation on retry.
  * Strictly excludes JWT tokens, credentials, and sensitive customer data.
  * @param {Object} details Minimal order snapshot
  */
-export function saveAmbiguousMarker(details) {
+export function saveAmbiguousMarker(details = {}) {
   try {
+    const idempotencyKey = details.idempotencyKey || details.clientReferenceId;
     const marker = {
-      clientReferenceId: details.clientReferenceId || `REF-${Date.now()}`,
-      timestamp: Date.now(),
+      idempotencyKey: idempotencyKey,
+      clientReferenceId: idempotencyKey,
+      timestamp: details.timestamp || Date.now(),
       orderType: details.orderType || 'DINE_IN',
       cabinTableRef: details.cabinTableRef || null,
       itemCount: details.itemCount || 0,
@@ -146,8 +159,19 @@ export function validateCashTender(cashTenderedStr, payableTotal) {
     };
   }
 
+  // 2. Strict format validation: Positive integer or decimal up to 2 places
+  if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) {
+    return {
+      isExactCash: false,
+      isValid: false,
+      tenderedAmount: 0,
+      tenderedPaise: 0,
+      changeAmount: 0,
+      errorMessage: 'Please enter a valid positive cash amount (e.g. 100 or 100.50).',
+    };
+  }
+
   const num = parseFloat(trimmed);
-  // 2. Non-numeric or negative input
   if (isNaN(num) || num < 0) {
     return {
       isExactCash: false,

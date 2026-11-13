@@ -1,6 +1,7 @@
 package com.stationstories.controller;
 
 import com.stationstories.common.ApiResponse;
+import com.stationstories.dto.bill.BillOperationResponse;
 import com.stationstories.dto.bill.BillResponse;
 import com.stationstories.dto.bill.CreateBillRequest;
 import com.stationstories.dto.bill.ThermalReceiptResponse;
@@ -82,13 +83,24 @@ public class PosController {
     // --- Billing Operations ---
 
     @PostMapping("/bills")
-    @Operation(summary = "Create and finalize POS bill", description = "Calculates authoritative totals, generates atomic thread-safe sequence number, freezes snapshots, and logs transaction.")
+    @Operation(summary = "Create and finalize POS bill", description = "Calculates authoritative totals, generates atomic thread-safe sequence number, freezes snapshots, and logs transaction with idempotency protection.")
     public ResponseEntity<ApiResponse<BillResponse>> createBill(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody CreateBillRequest request,
             Authentication authentication) {
         User cashier = authService.getUserEntity(authentication.getName());
-        BillResponse bill = billService.createBill(request, cashier);
+        BillResponse bill = billService.createBill(request, cashier, idempotencyKey);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Bill generated successfully", bill));
+    }
+
+    @GetMapping("/bills/operations/{operationKey}")
+    @Operation(summary = "Reconcile bill operation by idempotency key", description = "Authoritatively checks operation status: PROCESSING, SUCCEEDED, DEFINITIVELY_FAILED, or NOT_FOUND.")
+    public ResponseEntity<ApiResponse<BillOperationResponse>> reconcileOperation(
+            @PathVariable String operationKey,
+            Authentication authentication) {
+        User currentUser = authService.getUserEntity(authentication.getName());
+        BillOperationResponse response = billService.reconcileOperation(operationKey, currentUser);
+        return ResponseEntity.ok(ApiResponse.success("Operation status retrieved", response));
     }
 
     @GetMapping("/bills/{id}")
