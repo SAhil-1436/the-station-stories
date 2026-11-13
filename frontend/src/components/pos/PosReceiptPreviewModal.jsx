@@ -7,8 +7,11 @@ import {
   AlertTriangle,
   RefreshCw,
   QrCode,
+  Download,
+  Loader2,
 } from 'lucide-react';
 import * as posApi from '../../services/posApi';
+import { downloadReceiptPdf } from '../../utils/receiptPdfGenerator';
 
 /**
  * Reusable ESC/POS Thermal Receipt Modal (Phase 5.2)
@@ -47,6 +50,11 @@ export default function PosReceiptPreviewModal({
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
+  // 58mm PDF Download State
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [pdfSuccess, setPdfSuccess] = useState(false);
+  const [pdfError, setPdfError] = useState(null);
+
   // Fetch Authoritative Receipt from backend
   const fetchReceipt = useCallback(async () => {
     if (!billId) return;
@@ -64,13 +72,38 @@ export default function PosReceiptPreviewModal({
     }
   }, [billId, printerWidth]);
 
+  // Handle Authoritative 58mm PDF Generation and Download
+  const handleDownloadPdf = async () => {
+    if (!billId) return;
+    setDownloadingPdf(true);
+    setPdfError(null);
+    try {
+      let payload = receiptData;
+      // Ensure we pass the 58mm layout payload to pdf generator
+      if (!payload || payload.printerWidth !== '58mm') {
+        payload = await posApi.getThermalReceipt(billId, '58mm');
+      }
+      await downloadReceiptPdf(payload);
+      setPdfSuccess(true);
+      setTimeout(() => setPdfSuccess(false), 3500);
+    } catch (err) {
+      setPdfError(err.message || 'Failed to generate 58mm PDF receipt.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && billId) {
       fetchReceipt();
+      setPdfError(null);
+      setPdfSuccess(false);
     } else if (!billId) {
       setReceiptData(null);
       setFetchError(null);
       setLoading(false);
+      setPdfError(null);
+      setPdfSuccess(false);
     }
   }, [isOpen, billId, fetchReceipt]);
 
@@ -418,12 +451,24 @@ export default function PosReceiptPreviewModal({
         </div>
 
         {/* Modal Footer Actions */}
-        <div className="flex items-center justify-between px-6 py-4 bg-lavender-50/70 border-t border-lavender-200 shrink-0">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-lavender-50/70 border-t border-lavender-200 shrink-0">
           <div className="text-xs text-body-muted flex items-center gap-2">
             {printedFeedback && (
               <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 Sent to printer queue
+              </span>
+            )}
+            {pdfSuccess && (
+              <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Downloaded 58mm PDF
+              </span>
+            )}
+            {pdfError && (
+              <span className="inline-flex items-center gap-1 text-red-600 font-medium">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                {pdfError}
               </span>
             )}
           </div>
@@ -436,6 +481,32 @@ export default function PosReceiptPreviewModal({
             >
               Close
             </button>
+
+            {/* 58mm PDF Download Button - Disabled/Hidden for Draft Previews */}
+            {isFinalized ? (
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={downloadingPdf || loading || Boolean(fetchError)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-lavender-100 hover:bg-lavender-200 text-plum-royal border border-lavender-300 text-xs font-semibold shadow-xs transition-all disabled:opacity-50"
+                title="Download 58mm Thermal Receipt as PDF"
+              >
+                {downloadingPdf ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-gold" />
+                ) : (
+                  <Download className="w-3.5 h-3.5 text-gold" />
+                )}
+                <span>{downloadingPdf ? 'Generating PDF...' : 'Download 58mm PDF'}</span>
+              </button>
+            ) : (
+              <div
+                className="px-3 py-1.5 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-400 text-[11px] font-medium cursor-not-allowed select-none"
+                title="PDF download is only available for finalized bills"
+              >
+                Draft Preview (No PDF)
+              </div>
+            )}
+
             <button
               type="button"
               onClick={handlePrint}

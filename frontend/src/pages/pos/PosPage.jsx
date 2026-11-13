@@ -32,6 +32,7 @@ import PosShortcutsModal from '../../components/pos/PosShortcutsModal';
 import PosCheckoutModal from '../../components/pos/PosCheckoutModal';
 import PosBillSuccessModal from '../../components/pos/PosBillSuccessModal';
 import ConfirmModal from '../../components/admin/ConfirmModal';
+import { getAmbiguousMarker } from '../../utils/submissionLifecycle';
 
 /**
  * POS Foundation & Desktop Counter Billing Interface (Phase 5.1 & Phase 5.2)
@@ -88,6 +89,23 @@ export default function PosPage() {
   const [finalizedBill, setFinalizedBill] = useState(null);
   const [previewedTotalAtCheckout, setPreviewedTotalAtCheckout] = useState(0);
   const [receiptBillId, setReceiptBillId] = useState(null); // Non-null = authoritative; null = draft preview
+
+  // Ambiguous Submission Lockout State
+  const [ambiguousMarker, setAmbiguousMarker] = useState(() => getAmbiguousMarker());
+
+  // Check ambiguous marker on mount
+  useEffect(() => {
+    const marker = getAmbiguousMarker();
+    setAmbiguousMarker(marker);
+    if (marker) {
+      setIsCheckoutModalOpen(true);
+    }
+  }, []);
+
+  // Update ambiguous marker when checkout modal state toggles
+  useEffect(() => {
+    setAmbiguousMarker(getAmbiguousMarker());
+  }, [isCheckoutModalOpen]);
 
   // Refs
   const searchInputRef = useRef(null);
@@ -291,8 +309,12 @@ export default function PosPage() {
     }
   };
 
-  // 6. Checkout & Settlement Flow (Phase 5.2)
+  // 6. Checkout & Settlement Flow (Phase 5.2 & Phase 5.3)
   const handleOpenCheckout = () => {
+    if (getAmbiguousMarker()) {
+      setIsCheckoutModalOpen(true);
+      return;
+    }
     if (cart.length === 0) return;
     if (unavailableCartItems.length > 0) return;
     setIsCheckoutModalOpen(true);
@@ -356,6 +378,9 @@ export default function PosPage() {
           return;
         }
         if (isCheckoutModalOpen) {
+          if (getAmbiguousMarker()) {
+            return; // STRICT LOCKOUT: Counter is locked pending manager reconciliation
+          }
           setIsCheckoutModalOpen(false);
           return;
         }
@@ -452,7 +477,34 @@ export default function PosPage() {
   ]);
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row gap-3.5 min-h-0 overflow-hidden font-sans">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden font-sans">
+      {/* Ambiguous Submission Warning & Counter Lockout Banner */}
+      {ambiguousMarker && (
+        <div className="mb-2.5 p-3 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0">
+              <ShieldAlert className="w-4 h-4 text-amber-700" />
+            </div>
+            <div>
+              <div className="font-bold text-xs text-amber-950">
+                Counter Lockout: Ambiguous Submission Pending Resolution
+              </div>
+              <div className="text-[11px] text-amber-800">
+                A bill submission on this counter encountered a network timeout or interruption. New orders cannot be placed until resolved.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsCheckoutModalOpen(true)}
+            className="px-3.5 py-1.5 rounded-full bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shrink-0 shadow-xs transition-colors"
+          >
+            Reconcile Submission
+          </button>
+        </div>
+      )}
+
+      <div className="flex-1 flex flex-col lg:flex-row gap-3.5 min-h-0 overflow-hidden">
       {/* ==================================================================== */}
       {/* LEFT COLUMN: Product Catalog, Search, Categories, Grid */}
       {/* ==================================================================== */}
@@ -1045,26 +1097,39 @@ export default function PosPage() {
               </button>
             </div>
 
-            {/* Settle & Finalize Bill Button (Phase 5.2 Functional Checkout) */}
+            {/* Settle & Finalize Bill Button (Phase 5.2 & 5.3) */}
             <button
               type="button"
-              disabled={cart.length === 0 || unavailableCartItems.length > 0}
+              disabled={Boolean(ambiguousMarker) ? false : (cart.length === 0 || unavailableCartItems.length > 0)}
               onClick={handleOpenCheckout}
               className={`w-full py-2.5 px-4 rounded-xl font-serif font-bold text-sm flex items-center justify-center gap-2 shadow-soft transition-all ${
-                cart.length > 0 && unavailableCartItems.length === 0
+                ambiguousMarker
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shadow-md'
+                  : cart.length > 0 && unavailableCartItems.length === 0
                   ? 'bg-plum-royal hover:bg-plum-dark text-white cursor-pointer active:scale-[0.99]'
                   : 'bg-plum-royal/40 text-ivory/60 cursor-not-allowed shadow-none border border-plum-900/10'
               }`}
-              title="Proceed to Payment & Bill Generation (F4 / Alt + S)"
+              title={ambiguousMarker ? "Counter Locked - Resolve Ambiguous Submission" : "Proceed to Payment & Bill Generation (F4 / Alt + S)"}
             >
-              <CreditCard className="w-4 h-4 text-gold" />
-              <span>
-                Proceed to Checkout ({formatINR(financialTotals.payableTotal)})
-              </span>
-              <ArrowRight className="w-4 h-4 ml-1 text-gold" />
+              {ambiguousMarker ? (
+                <>
+                  <ShieldAlert className="w-4 h-4 text-white" />
+                  <span>Resolve Ambiguous Submission</span>
+                  <ArrowRight className="w-4 h-4 ml-1 text-white" />
+                </>
+              ) : (
+                <>
+                  <CreditCard className="w-4 h-4 text-gold" />
+                  <span>
+                    Proceed to Checkout ({formatINR(financialTotals.payableTotal)})
+                  </span>
+                  <ArrowRight className="w-4 h-4 ml-1 text-gold" />
+                </>
+              )}
             </button>
           </div>
         </div>
+      </div>
       </div>
 
       {/* ==================================================================== */}

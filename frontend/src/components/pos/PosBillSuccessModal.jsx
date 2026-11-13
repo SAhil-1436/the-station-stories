@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   CheckCircle2,
   Printer,
@@ -11,7 +11,11 @@ import {
   Phone,
   Clock,
   AlertCircle,
+  Download,
+  Loader2,
 } from 'lucide-react';
+import * as posApi from '../../services/posApi';
+import { downloadReceiptPdf } from '../../utils/receiptPdfGenerator';
 
 /**
  * POS Completed Bill / Invoice Success Modal (Phase 5.2)
@@ -33,7 +37,27 @@ export default function PosBillSuccessModal({
   onViewReceipt,
   onStartNewOrder,
 }) {
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [pdfSuccess, setPdfSuccess] = useState(false);
+  const [pdfError, setPdfError] = useState(null);
+
   if (!isOpen || !bill) return null;
+
+  const handleDownloadPdf = async () => {
+    if (!bill?.id) return;
+    setDownloadingPdf(true);
+    setPdfError(null);
+    try {
+      const receiptData = await posApi.getThermalReceipt(bill.id, '58mm');
+      await downloadReceiptPdf(receiptData);
+      setPdfSuccess(true);
+      setTimeout(() => setPdfSuccess(false), 3500);
+    } catch (err) {
+      setPdfError(err.message || 'Failed to generate 58mm PDF receipt.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const formatINR = (val) => {
     return new Intl.NumberFormat('en-IN', {
@@ -203,23 +227,59 @@ export default function PosBillSuccessModal({
           </div>
         </div>
 
+        {/* Feedback message if any */}
+        {(pdfSuccess || pdfError) && (
+          <div className="px-6 py-2 bg-lavender-50 border-t border-lavender-200 text-xs">
+            {pdfSuccess && (
+              <span className="inline-flex items-center gap-1.5 text-emerald-700 font-medium">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                58mm Receipt PDF downloaded successfully ({bill.billNumber})
+              </span>
+            )}
+            {pdfError && (
+              <span className="inline-flex items-center gap-1.5 text-red-700 font-medium">
+                <AlertCircle className="w-4 h-4 text-red-600" />
+                {pdfError}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Modal Action Footer */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 bg-lavender-50/70 border-t border-lavender-200 shrink-0">
-          {/* Print Receipt Action */}
-          <button
-            type="button"
-            onClick={() => onViewReceipt(bill.id)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-lavender-100 hover:bg-lavender-200 text-plum-royal font-semibold text-xs border border-lavender-200 transition-colors shadow-xs"
-          >
-            <Printer className="w-4 h-4 text-gold" />
-            <span>Print Thermal Receipt</span>
-          </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 px-6 py-4 bg-lavender-50/70 border-t border-lavender-200 shrink-0">
+          <div className="flex items-center gap-2">
+            {/* Direct 58mm PDF Download Button */}
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-lavender-100 hover:bg-lavender-200 text-plum-royal font-semibold text-xs border border-lavender-200 transition-colors shadow-xs disabled:opacity-50"
+              title="Download 58mm Thermal Receipt as PDF"
+            >
+              {downloadingPdf ? (
+                <Loader2 className="w-4 h-4 animate-spin text-gold" />
+              ) : (
+                <Download className="w-4 h-4 text-gold" />
+              )}
+              <span>{downloadingPdf ? 'Generating PDF...' : 'Download 58mm PDF'}</span>
+            </button>
+
+            {/* Print Thermal Receipt Action (Opens preview/print modal) */}
+            <button
+              type="button"
+              onClick={() => onViewReceipt(bill.id)}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-lavender-100 hover:bg-lavender-200 text-plum-royal font-semibold text-xs border border-lavender-200 transition-colors shadow-xs"
+            >
+              <Printer className="w-4 h-4 text-gold" />
+              <span>Print Preview</span>
+            </button>
+          </div>
 
           {/* Explicit Start New Order Button */}
           <button
             type="button"
             onClick={onStartNewOrder}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-plum-royal hover:bg-plum-dark text-white font-semibold text-xs shadow-soft transition-all active:scale-95"
+            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-plum-royal hover:bg-plum-dark text-white font-semibold text-xs shadow-soft transition-all active:scale-95"
           >
             <PlusCircle className="w-4 h-4 text-gold" />
             <span>Start New Order</span>
