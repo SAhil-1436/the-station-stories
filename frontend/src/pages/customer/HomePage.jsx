@@ -36,7 +36,7 @@ export default function HomePage() {
 
       {/* 5. Authentic Ambience Photo Showcase */}
       <section className="py-20 lg:py-28 bg-ivory border-t border-gold/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
           <ScrollReveal>
             <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 mb-12">
               <SectionHeading
@@ -58,14 +58,14 @@ export default function HomePage() {
           </ScrollReveal>
 
           {/* 6-Photo Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5 lg:gap-6">
             {previewPhotos.map((photo, index) => {
               const title = isHindi && photo.titleHi ? photo.titleHi : photo.titleEn;
               return (
                 <ScrollReveal key={photo.id} delay={index * 0.08}>
                   <div
                     onClick={() => setLightboxIndex(index)}
-                    className="group relative h-48 sm:h-64 rounded-2xl sm:rounded-3xl overflow-hidden cursor-pointer bg-lavender-100 border border-gold/30 hover:border-plum-royal shadow-soft hover:shadow-luxury hover:-translate-y-1 transition-all duration-300"
+                    className="group relative h-56 sm:h-64 md:h-72 xl:h-80 2xl:h-[22rem] rounded-2xl sm:rounded-3xl overflow-hidden cursor-pointer bg-lavender-100 border border-gold/30 hover:border-plum-royal shadow-soft hover:shadow-luxury hover:-translate-y-1 transition-all duration-300"
                   >
                     <img
                       src={photo.imageUrl}
@@ -75,7 +75,7 @@ export default function HomePage() {
                     />
 
                     {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-plum-dark/90 via-plum-dark/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3 sm:p-4 flex flex-col justify-end text-ivory">
+                    <div className="absolute inset-0 bg-gradient-to-t from-plum-dark/95 via-plum-dark/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3.5 sm:p-4 flex flex-col justify-end text-ivory">
                       <span className="text-[10px] font-bold text-gold uppercase tracking-wider">
                         {photo.category}
                       </span>

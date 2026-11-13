@@ -9,14 +9,14 @@ export default function BrandStory() {
 
   return (
     <section className="py-20 lg:py-28 bg-lavender-50/60 border-y border-gold/20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-12 xl:gap-16 2xl:gap-20 items-center">
           {/* Left: Asymmetrical Image Showcase (5 cols) */}
           <div className="lg:col-span-5 relative order-2 lg:order-1">
             <ScrollReveal direction="right">
-              <div className="relative mx-auto max-w-md lg:max-w-none">
-                <div className="rounded-[2.5rem] overflow-hidden p-2.5 bg-gradient-to-tr from-gold/40 via-lavender-200 to-plum-royal/30 shadow-luxury">
-                  <div className="aspect-[4/5] rounded-[2rem] overflow-hidden bg-plum-dark">
+              <div className="relative mx-auto max-w-lg lg:max-w-none">
+                <div className="rounded-[2.5rem] overflow-hidden p-2.5 sm:p-3 bg-gradient-to-tr from-gold/40 via-lavender-200 to-plum-royal/30 shadow-luxury">
+                  <div className="aspect-[4/4.5] rounded-[2rem] overflow-hidden bg-plum-dark">
                     <img
                       src="/images/branding/station-stories-signage.jpeg"
                       alt="The Station Stories Official Wall Signage"

@@ -18,7 +18,7 @@ export default function Footer() {
   return (
     <footer className="bg-plum-dark text-ivory/90 border-t border-gold/30">
       {/* Upper Content Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-16 lg:py-20">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Col 1: Brand & Philosophy */}
           <div className="space-y-5">
@@ -55,12 +55,6 @@ export default function Footer() {
               <li>
                 <Link to="/menu" className="text-ivory/80 hover:text-gold transition-colors">
                   {t('nav.menu')}
-                </Link>
-              </li>
-              <li>
-                <Link to="/qr-menu" className="text-ivory/80 hover:text-gold transition-colors inline-flex items-center gap-1.5">
-                  <span>{t('nav.qrMenu')}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold/20 text-gold-300 border border-gold/40 font-mono">Dine-In</span>
                 </Link>
               </li>
               <li>
@@ -139,7 +133,7 @@ export default function Footer() {
 
       {/* Bottom Bar: Copyright, Disclaimers, Discreet Staff Link */}
       <div className="border-t border-plum-800/80 bg-plum-950 py-6 text-xs text-ivory/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-center sm:text-left">
             &copy; {new Date().getFullYear()} The Station Stories. {t('footer.rights')}
           </p>

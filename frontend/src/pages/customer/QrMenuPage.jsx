@@ -16,18 +16,7 @@ export default function QrMenuPage() {
   const { t, i18n } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState(null); // null = All
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCabin, setSelectedCabin] = useState('Express Dining');
   const isHindi = i18n.language.startsWith('hi');
-
-  const cabinLocations = [
-    'Express Dining (Main Hall)',
-    'Cabin 1 (Express Cabin)',
-    'Cabin 2 (Royal Cabin)',
-    'Cabin 3 (First Class Cabin)',
-    'Table 1', 'Table 2', 'Table 3', 'Table 4', 'Table 5',
-    'Table 6', 'Table 7', 'Table 8', 'Table 9', 'Table 10',
-    'Takeaway Counter'
-  ];
 
   // Filter items
   const filteredDishes = useMemo(() => {
@@ -51,7 +40,7 @@ export default function QrMenuPage() {
       {/* 1. Mobile-First Sticky Top Bar */}
       <div className="sticky top-16 z-30 bg-ivory/95 backdrop-blur-md border-b border-gold/30 px-4 py-3 shadow-xs">
         <div className="max-w-2xl mx-auto space-y-2.5">
-          {/* Header row: Brand & Cabin selector */}
+          {/* Header row: Brand & Dine-In Badge */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-plum-royal text-gold flex items-center justify-center">
@@ -67,19 +56,9 @@ export default function QrMenuPage() {
               </div>
             </div>
 
-            {/* Table / Cabin Selector */}
-            <select
-              value={selectedCabin}
-              onChange={(e) => setSelectedCabin(e.target.value)}
-              aria-label="Select table or private cabin"
-              className="bg-white border border-gold/40 text-plum-royal text-xs font-semibold rounded-full px-3 py-1.5 focus:outline-none focus:border-plum-royal shadow-2xs"
-            >
-              {cabinLocations.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
+            <span className="text-[10px] font-mono font-semibold px-2.5 py-1 rounded-full bg-lavender-100 border border-gold/40 text-plum-royal">
+              Dine-In
+            </span>
           </div>
 
           {/* Search Box */}
@@ -145,7 +124,7 @@ export default function QrMenuPage() {
           <div className="flex items-center gap-2">
             <Compass className="w-4 h-4 text-plum-royal shrink-0" />
             <div>
-              <p className="font-bold text-plum-royal">Welcome to {selectedCabin}</p>
+              <p className="font-bold text-plum-royal">Welcome to The Station Stories</p>
               <p className="text-[11px] text-body-muted font-light">Browse our menu and place your order with your table captain.</p>
             </div>
           </div>

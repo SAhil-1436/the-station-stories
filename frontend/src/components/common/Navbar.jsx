@@ -5,7 +5,6 @@ import {
   Menu as MenuIcon, 
   X, 
   BookOpen, 
-  QrCode, 
   Image as ImageIcon, 
   Sparkles, 
   PhoneCall, 
@@ -49,7 +48,7 @@ export default function Navbar() {
           : 'bg-ivory border-b border-gold/20 py-4'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 flex items-center justify-between">
         {/* Brand Logo */}
         <BrandLogo onClick={() => setIsMobileMenuOpen(false)} />
 
@@ -74,30 +73,19 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Quick Action: Dine-In QR Menu */}
-          <Link
-            to="/qr-menu"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold bg-gold text-plum-dark hover:bg-gold-light border border-gold-dark/30 shadow-sm transition-all hover:scale-102 active:scale-98"
-          >
-            <QrCode className="w-4 h-4 text-plum-royal" />
-            <span>{t('nav.qrMenu')}</span>
-          </Link>
-
-          <div className="h-5 w-px bg-gold/30" />
-
           {/* Language Switcher */}
           <LanguageSwitcher />
         </div>
 
         {/* Mobile Actions: Language + Hamburger Menu */}
-        <div className="flex items-center gap-3 lg:hidden">
+        <div className="flex items-center gap-1.5 sm:gap-3 lg:hidden shrink-0">
           <LanguageSwitcher />
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-label={isMobileMenuOpen ? 'Close Navigation Menu' : 'Open Navigation Menu'}
-            className="p-2 rounded-full bg-lavender-100 text-plum-royal hover:bg-lavender-200 focus:outline-none transition-colors"
+            className="p-1.5 sm:p-2 rounded-full bg-lavender-100 text-plum-royal hover:bg-lavender-200 focus:outline-none transition-colors"
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
+            {isMobileMenuOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <MenuIcon className="w-5 h-5 sm:w-6 sm:h-6" />}
           </button>
         </div>
       </div>
@@ -124,17 +112,6 @@ export default function Navbar() {
                 </Link>
               );
             })}
-
-            {/* Mobile QR Menu Prominent CTA */}
-            <div className="pt-2">
-              <Link
-                to="/qr-menu"
-                className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-2xl text-sm font-bold bg-gold text-plum-dark shadow-sm border border-gold-dark/30"
-              >
-                <QrCode className="w-5 h-5 text-plum-royal" />
-                <span>{t('nav.qrMenu')} (Table / Cabin)</span>
-              </Link>
-            </div>
           </nav>
         </div>
       )}

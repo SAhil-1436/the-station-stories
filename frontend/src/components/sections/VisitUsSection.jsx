@@ -21,7 +21,7 @@ export default function VisitUsSection() {
 
   return (
     <section className="py-20 lg:py-28 bg-lavender-50/70 border-t border-gold/20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <ScrollReveal>
           <SectionHeading
             badge="Hospitality & Hours"
@@ -31,7 +31,7 @@ export default function VisitUsSection() {
         </ScrollReveal>
 
         {/* 3-Card Grid */}
-        <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-8 xl:gap-10">
           {/* Card 1: Hours */}
           <ScrollReveal delay={0.1}>
             <div className="h-full p-8 rounded-3xl bg-white border border-gold/30 shadow-soft flex flex-col justify-between space-y-6">

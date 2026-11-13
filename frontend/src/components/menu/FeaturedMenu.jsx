@@ -13,7 +13,7 @@ export default function FeaturedMenu() {
 
   return (
     <section className="py-20 lg:py-28 bg-ivory">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <ScrollReveal>
           <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 mb-12">
             <SectionHeading
@@ -35,7 +35,7 @@ export default function FeaturedMenu() {
         </ScrollReveal>
 
         {/* 4-Item Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7 xl:gap-8">
           {featuredDishes.map((dish, idx) => (
             <ScrollReveal key={dish.id} delay={idx * 0.1}>
               <MenuCard item={dish} />

@@ -10,7 +10,7 @@ export default function ExperienceHighlights() {
 
   return (
     <section className="py-20 lg:py-28 bg-ivory">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
         <ScrollReveal>
           <SectionHeading
             badge={t('story.badge')}
@@ -20,7 +20,7 @@ export default function ExperienceHighlights() {
         </ScrollReveal>
 
         {/* 4 Pillars Grid in Soft Lavender & Royal Plum */}
-        <div className="mt-14 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="mt-14 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 xl:gap-8 2xl:gap-10">
           {RESTAURANT_INFO.highlights.map((item, index) => {
             const title = isHindi ? item.titleHi : item.titleEn;
             const desc = isHindi ? item.descHi : item.descEn;

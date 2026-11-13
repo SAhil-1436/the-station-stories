@@ -62,6 +62,10 @@ export default {
         'luxury': '0 12px 35px -5px rgba(69, 33, 63, 0.12), 0 4px 12px -2px rgba(197, 161, 107, 0.08)',
         'elevated': '0 20px 45px -10px rgba(50, 23, 47, 0.18)',
       },
+      maxWidth: {
+        'site': '1480px',
+        '8xl': '1480px',
+      },
     },
   },
   plugins: [],

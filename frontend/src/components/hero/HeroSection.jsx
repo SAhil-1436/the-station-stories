@@ -1,18 +1,18 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, BookOpen, QrCode, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, BookOpen, ShieldCheck, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function HeroSection() {
   const { t } = useTranslation();
 
   return (
-    <section className="relative overflow-hidden bg-ivory pt-8 pb-16 lg:pt-16 lg:pb-24 border-b border-gold/20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+    <section className="relative bg-ivory pt-8 pb-16 lg:pt-14 lg:pb-20 xl:pb-24 border-b border-gold/20">
+      <div className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 xl:gap-12 2xl:gap-14 items-center">
           {/* Left Column: Brand Typography & CTAs (7 cols on desktop) */}
-          <div className="lg:col-span-7 space-y-6 sm:space-y-8 text-center lg:text-left">
+          <div className="lg:col-span-7 space-y-6 sm:space-y-7 xl:space-y-8 text-center lg:text-left">
             {/* Live Status Pill */}
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-lavender-100 border border-gold/40 text-plum-royal text-xs font-semibold shadow-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
@@ -20,20 +20,20 @@ export default function HeroSection() {
             </div>
 
             {/* Main Headline */}
-            <div className="space-y-3">
-              <span className="block text-xs font-mono uppercase tracking-[0.28em] text-gold-700 font-bold">
+            <div className="space-y-2.5 sm:space-y-4">
+              <span className="block text-[10px] sm:text-xs font-mono uppercase tracking-[0.16em] sm:tracking-[0.28em] text-gold-700 font-bold">
                 Railway Ambiance & Artisanal Fast Food
               </span>
-              <h1 className="font-serif font-extrabold text-4xl sm:text-6xl lg:text-7xl text-plum-royal tracking-tight leading-[1.08]">
-                <span>{t('hero.titlePart1')} </span>
-                <span className="italic font-normal block sm:inline text-gold-700">
+              <h1 className="font-serif font-extrabold text-[1.5rem] sm:text-4xl md:text-5xl lg:text-[2.75rem] xl:text-[3.25rem] 2xl:text-[3.65rem] text-plum-royal tracking-tight leading-[1.15] sm:leading-[1.12]">
+                <span className="block">{t('hero.titlePart1')}</span>
+                <span className="italic font-normal block text-gold-700 mt-0.5 sm:mt-1.5 break-words xl:whitespace-nowrap">
                   {t('hero.titlePart2')}
                 </span>
               </h1>
             </div>
 
             {/* Subtitle */}
-            <p className="text-body text-base sm:text-lg lg:text-xl font-light leading-relaxed max-w-xl mx-auto lg:mx-0">
+            <p className="text-body text-sm sm:text-base md:text-lg xl:text-xl font-light leading-relaxed max-w-2xl mx-auto lg:mx-0">
               {t('hero.subtitle')}
             </p>
 
@@ -58,18 +58,18 @@ export default function HeroSection() {
             </div>
 
             {/* Authentic Photography Trust Badge */}
-            <div className="pt-4 flex items-center justify-center lg:justify-start gap-2 text-xs text-body-muted font-mono">
-              <ShieldCheck className="w-4 h-4 text-gold-600" />
+            <div className="pt-3 sm:pt-4 flex items-center justify-center lg:justify-start gap-2 text-[11px] sm:text-xs text-body-muted font-mono text-center lg:text-left">
+              <ShieldCheck className="w-4 h-4 text-gold-600 shrink-0" />
               <span>Authentic Interior Architecture & Photography</span>
             </div>
           </div>
 
           {/* Right Column: Authentic Restaurant Photography Editorial Showcase (5 cols on desktop) */}
-          <div className="lg:col-span-5 relative">
-            <div className="relative mx-auto max-w-md lg:max-w-none">
+          <div className="lg:col-span-5 relative py-4 lg:py-6">
+            <div className="relative mx-auto max-w-lg lg:max-w-none">
               {/* Asymmetrical Frame in Champagne Gold */}
-              <div className="relative rounded-[2.5rem] overflow-hidden p-2.5 bg-gradient-to-br from-gold/40 via-lavender-200 to-plum-royal/20 shadow-luxury">
-                <div className="relative aspect-[4/5] rounded-[2rem] overflow-hidden bg-plum-dark">
+              <div className="relative rounded-[2.5rem] p-2.5 sm:p-3 bg-gradient-to-br from-gold/40 via-lavender-200 to-plum-royal/20 shadow-luxury">
+                <div className="relative aspect-[4/4] rounded-[2rem] overflow-hidden bg-plum-dark">
                   <img
                     src="/images/restaurant/interior-main-hall.jpeg"
                     alt="The Station Stories Central Express Dining Hall"
@@ -77,7 +77,7 @@ export default function HeroSection() {
                     loading="eager"
                   />
                   {/* Subtle Plum Gradient Overlay at base */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-plum-dark/80 via-transparent to-transparent pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-plum-dark/85 via-plum-dark/20 to-transparent pointer-events-none" />
 
                   {/* Caption on image */}
                   <div className="absolute bottom-5 left-5 right-5 text-ivory text-xs space-y-1">
@@ -86,24 +86,6 @@ export default function HeroSection() {
                   </div>
                 </div>
               </div>
-
-              {/* Overlapping Floating Badge: Dine-In QR Quick Jump */}
-              <Link
-                to="/qr-menu"
-                className="absolute -bottom-6 -left-4 sm:-left-6 p-4 rounded-2xl bg-ivory border-2 border-gold/40 shadow-elevated flex items-center gap-3.5 hover:scale-102 transition-transform duration-200 group"
-              >
-                <div className="w-12 h-12 rounded-xl bg-plum-royal text-gold flex items-center justify-center shadow-sm">
-                  <QrCode className="w-6 h-6" />
-                </div>
-                <div className="text-left">
-                  <span className="block text-xs font-bold text-plum-royal group-hover:text-gold-700 transition-colors">
-                    Dine-In Table QR
-                  </span>
-                  <span className="block text-[11px] text-body-muted font-light">
-                    Browse menu right at your table
-                  </span>
-                </div>
-              </Link>
             </div>
           </div>
         </div>
