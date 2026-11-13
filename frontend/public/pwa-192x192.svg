@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="36" fill="#45213F"/>
+  <circle cx="96" cy="96" r="76" fill="none" stroke="#C5A16B" stroke-width="4"/>
+  <circle cx="96" cy="96" r="66" fill="none" stroke="#E9DDEB" stroke-width="1.5" stroke-dasharray="6 3"/>
+  <text x="96" y="106" font-family="'Playfair Display', Georgia, serif" font-size="44" font-weight="bold" fill="#C5A16B" text-anchor="middle">TSS</text>
+  <text x="96" y="126" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#F7F1E8" text-anchor="middle" letter-spacing="2">POS</text>
+</svg>

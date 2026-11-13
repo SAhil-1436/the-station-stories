@@ -60,6 +60,16 @@ public class BillOperationResponse {
         );
     }
 
+    public static BillOperationResponse needsReview(String operationKey, String reason, Instant createdAt) {
+        return new BillOperationResponse(
+                operationKey,
+                "NEEDS_REVIEW",
+                reason != null ? reason : "Bill operation requires manual review",
+                null,
+                createdAt != null ? createdAt : Instant.now()
+        );
+    }
+
     public String getOperationKey() {
         return operationKey;
     }

@@ -31,6 +31,12 @@ public class CreateBillRequest {
 
     private String idempotencyKey;
 
+    private String localBillReference;
+
+    private String deviceId;
+
+    private Boolean isOfflineCreated = false;
+
     @NotEmpty(message = "At least one item is required in the bill")
     @Valid
     private List<BillItemRequest> items;
@@ -115,5 +121,29 @@ public class CreateBillRequest {
 
     public void setIdempotencyKey(String idempotencyKey) {
         this.idempotencyKey = idempotencyKey;
+    }
+
+    public String getLocalBillReference() {
+        return localBillReference;
+    }
+
+    public void setLocalBillReference(String localBillReference) {
+        this.localBillReference = localBillReference;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
+    }
+
+    public Boolean getIsOfflineCreated() {
+        return isOfflineCreated;
+    }
+
+    public void setIsOfflineCreated(Boolean isOfflineCreated) {
+        this.isOfflineCreated = isOfflineCreated;
     }
 }

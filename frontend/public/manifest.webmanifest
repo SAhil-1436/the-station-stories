@@ -1,0 +1,25 @@
+{
+  "name": "The Station Stories — Counter POS",
+  "short_name": "TSS POS",
+  "description": "Offline-First Desktop POS & Billing Terminal for The Station Stories",
+  "start_url": "/pos",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#F7F1E8",
+  "theme_color": "#45213F",
+  "icons": [
+    {
+      "src": "/pwa-192x192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-512x512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

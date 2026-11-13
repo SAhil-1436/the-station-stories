@@ -10,6 +10,7 @@ public class BillOperation {
     public static final String STATUS_PROCESSING = "PROCESSING";
     public static final String STATUS_SUCCEEDED = "SUCCEEDED";
     public static final String STATUS_DEFINITIVELY_FAILED = "DEFINITIVELY_FAILED";
+    public static final String STATUS_NEEDS_REVIEW = "NEEDS_REVIEW";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,6 +22,9 @@ public class BillOperation {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cashier_id", nullable = false)
     private User cashier;
+
+    @Column(name = "device_id", length = 100)
+    private String deviceId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bill_id")
@@ -121,5 +125,13 @@ public class BillOperation {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 }

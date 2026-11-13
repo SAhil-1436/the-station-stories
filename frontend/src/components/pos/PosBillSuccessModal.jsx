@@ -44,11 +44,46 @@ export default function PosBillSuccessModal({
   if (!isOpen || !bill) return null;
 
   const handleDownloadPdf = async () => {
-    if (!bill?.id) return;
     setDownloadingPdf(true);
     setPdfError(null);
     try {
-      const receiptData = await posApi.getThermalReceipt(bill.id, '58mm');
+      let receiptData;
+      if (bill.id && typeof bill.id === 'number') {
+        receiptData = await posApi.getThermalReceipt(bill.id, '58mm');
+      } else {
+        // Construct offline receipt payload
+        receiptData = {
+          restaurantName: 'THE STATION STORIES',
+          tagline: 'Fast Food & Restaurant',
+          address: 'Railway Station Road, Station Stories',
+          phone: '+91 98765 43210',
+          gstin: '07AAAAA0000A1Z5',
+          billNumber: bill.serverBillNumber || bill.billNumber || bill.localReference,
+          localReference: bill.localReference,
+          isOffline: !bill.serverBillNumber && !bill.billNumber,
+          date: bill.billDate || new Date(bill.createdAt || Date.now()).toISOString().split('T')[0],
+          time: new Date(bill.createdAt || Date.now()).toLocaleTimeString('en-IN'),
+          orderType: bill.orderType,
+          cabinTableRef: bill.cabinTableRef,
+          customerName: bill.customerName,
+          customerPhone: bill.customerPhone,
+          cashierName: bill.cashierName || 'Station Cashier',
+          paymentMethod: bill.paymentMethod || 'CASH',
+          items: (bill.items || []).map((i) => ({
+            name: i.name,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            subtotal: i.subtotal,
+          })),
+          subtotal: bill.subtotal,
+          discountAmount: bill.discountAmount || 0,
+          taxRate: bill.taxRate || 0,
+          totalTax: bill.taxAmount || bill.totalTax || 0,
+          grandTotal: bill.payableAmount || bill.grandTotal,
+          footerText: '*** THANK YOU FOR VISITING! ***',
+          printerWidth: '58mm',
+        };
+      }
       await downloadReceiptPdf(receiptData);
       setPdfSuccess(true);
       setTimeout(() => setPdfSuccess(false), 3500);
@@ -100,13 +135,18 @@ export default function PosBillSuccessModal({
           <h2 className="font-serif font-bold text-2xl text-plum-royal">
             Bill Generated Successfully
           </h2>
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <span className="font-mono text-base font-bold px-3 py-1 rounded-full bg-plum-royal text-gold tracking-wider shadow-xs">
-              {bill.billNumber}
+              {bill.billNumber || bill.localReference}
             </span>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold uppercase tracking-wider">
               {bill.paymentStatus || 'PAID'}
             </span>
+            {!bill.billNumber && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-bold uppercase tracking-wider">
+                Offline • Pending Sync
+              </span>
+            )}
           </div>
         </div>
 
@@ -186,13 +226,13 @@ export default function PosBillSuccessModal({
             <div className="flex justify-between text-body-muted">
               <span>GST / Tax:</span>
               <span className="font-mono text-emerald-600 font-semibold">
-                {formatINR(bill.totalTax || 0)} {bill.taxRate > 0 ? `(${bill.taxRate}%)` : ''}
+                {formatINR(bill.totalTax || bill.taxAmount || 0)} {bill.taxRate > 0 ? `(${bill.taxRate}%)` : ''}
               </span>
             </div>
             <div className="flex justify-between items-baseline pt-2 border-t border-lavender-200 text-plum-royal">
               <span className="font-serif font-bold text-base">Grand Total:</span>
               <span className="font-mono font-bold text-2xl text-plum-royal">
-                {formatINR(bill.grandTotal)}
+                {formatINR(bill.grandTotal || bill.payableAmount)}
               </span>
             </div>
           </div>
@@ -267,7 +307,7 @@ export default function PosBillSuccessModal({
             {/* Print Thermal Receipt Action (Opens preview/print modal) */}
             <button
               type="button"
-              onClick={() => onViewReceipt(bill.id)}
+              onClick={() => onViewReceipt(bill.id || bill.localReference, bill)}
               className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-lavender-100 hover:bg-lavender-200 text-plum-royal font-semibold text-xs border border-lavender-200 transition-colors shadow-xs"
             >
               <Printer className="w-4 h-4 text-gold" />

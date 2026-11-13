@@ -25,7 +25,6 @@ import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
@@ -33,6 +32,8 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -60,6 +61,12 @@ class BillIdempotencyTest {
     @Mock
     private BillOperationRepository billOperationRepository;
 
+    @Mock
+    private BillOperationRegistrationService billOperationRegistrationService;
+
+    @Mock
+    private BillProcessingService billProcessingService;
+
     @InjectMocks
     private BillService billService;
 
@@ -67,7 +74,6 @@ class BillIdempotencyTest {
     private User cashier2;
     private User adminUser;
     private RestaurantSetting defaultSettings;
-    private MenuItem item;
 
     @BeforeEach
     void setUp() {
@@ -90,29 +96,13 @@ class BillIdempotencyTest {
         defaultSettings.setRestaurantName("THE STATION STORIES");
         defaultSettings.setGstEnabled(false);
 
-        Category cat = new Category("Fast Food", null, 1, true, null);
-        item = new MenuItem(cat, "Burger", null, "Desc", BigDecimal.valueOf(100.00), true, true, null, false, 0, 1);
-        item.setId(101L);
-
         when(settingService.getOrCreateSettings()).thenReturn(defaultSettings);
-        when(sequenceRepository.findBySequenceDateForUpdate(any(LocalDate.class)))
-                .thenReturn(Optional.of(new BillNumberSequence(LocalDate.now(), 1)));
-        when(menuItemRepository.findById(101L)).thenReturn(Optional.of(item));
-        when(billRepository.save(any(Bill.class))).thenAnswer(invocation -> {
-            Bill b = invocation.getArgument(0);
-            b.setId(999L);
-            return b;
-        });
-        when(billOperationRepository.saveAndFlush(any(BillOperation.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(billOperationRepository.save(any(BillOperation.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     private CreateBillRequest buildRequest(String idempotencyKey) {
         CreateBillRequest req = new CreateBillRequest();
         req.setOrderType(OrderType.DINE_IN);
-        req.setCabinTableRef("T1");
+        req.setCabinTableRef("Cabin 1");
         req.setPaymentMethod(PaymentMethod.CASH);
         req.setIdempotencyKey(idempotencyKey);
 
@@ -124,26 +114,31 @@ class BillIdempotencyTest {
     }
 
     @Test
-    @DisplayName("First request with new idempotency key creates bill and marks operation SUCCEEDED")
+    @DisplayName("First request claims operation in REQUIRES_NEW, creates bill, and marks operation SUCCEEDED")
     void testFirstRequestWithIdempotencyKey() {
         String key = "IDEMP-TEST-001";
         CreateBillRequest req = buildRequest(key);
 
-        when(billRepository.findByIdempotencyKey(key)).thenReturn(Optional.empty());
-        when(billOperationRepository.findByOperationKey(key)).thenReturn(Optional.empty());
+        Bill bill = new Bill();
+        bill.setId(123L);
+        bill.setBillNumber("TSS-20261113-0001");
+        bill.setIdempotencyKey(key);
+        bill.setGrandTotal(BigDecimal.valueOf(200.00));
+        bill.setSubtotal(BigDecimal.valueOf(200.00));
+        bill.setTotalTax(BigDecimal.ZERO);
+        bill.setCashier(cashier1);
+
+        BillOperation opProcessing = new BillOperation(key, cashier1, BillOperation.STATUS_PROCESSING);
+        when(billOperationRegistrationService.claimOperation(eq(key), eq(cashier1), any())).thenReturn(opProcessing);
+        when(billProcessingService.executeBillCreation(any(), any(), eq(key), any(), any(), anyBoolean(), any())).thenReturn(bill);
 
         BillResponse response = billService.createBill(req, cashier1, key);
 
         assertThat(response).isNotNull();
-        assertThat(response.getBillNumber()).contains("TSS-");
-        assertThat(response.getGrandTotal()).isEqualByComparingTo("200.00");
-
-        // Verify Bill was saved with the idempotency key
-        verify(billRepository).save(argThat(bill -> key.equals(bill.getIdempotencyKey())));
-        // Verify BillOperation was created and updated
-        verify(billOperationRepository).save(argThat(op -> 
-            key.equals(op.getOperationKey()) && BillOperation.STATUS_SUCCEEDED.equals(op.getStatus())
-        ));
+        assertThat(response.getBillNumber()).isEqualTo("TSS-20261113-0001");
+        verify(billOperationRegistrationService).claimOperation(eq(key), eq(cashier1), any());
+        verify(billProcessingService).executeBillCreation(any(), any(), eq(key), any(), any(), anyBoolean(), any());
+        verify(billOperationRegistrationService).markSucceeded(key, bill);
     }
 
     @Test
@@ -161,14 +156,34 @@ class BillIdempotencyTest {
         existingBill.setTotalTax(BigDecimal.ZERO);
         existingBill.setCashier(cashier1);
 
-        when(billRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(existingBill));
+        BillOperation opSucceeded = new BillOperation(key, cashier1, BillOperation.STATUS_SUCCEEDED);
+        opSucceeded.setBill(existingBill);
+        when(billOperationRegistrationService.claimOperation(eq(key), eq(cashier1), any())).thenReturn(opSucceeded);
 
         BillResponse response = billService.createBill(req, cashier1, key);
 
         assertThat(response).isNotNull();
         assertThat(response.getBillNumber()).isEqualTo("TSS-20261113-0005");
-        // billRepository.save must NOT be called for a duplicate!
-        verify(billRepository, never()).save(any(Bill.class));
+        verify(billProcessingService, never()).executeBillCreation(any(), any(), any(), any(), any(), anyBoolean(), any());
+    }
+
+    @Test
+    @DisplayName("Bill creation rollback leaves operation record marked as failed in isolated transaction")
+    void testBillCreationFailureLeavesOperationRecordIntact() {
+        String key = "IDEMP-TEST-FAIL-01";
+        CreateBillRequest req = buildRequest(key);
+
+        BillOperation opProcessing = new BillOperation(key, cashier1, BillOperation.STATUS_PROCESSING);
+        when(billOperationRegistrationService.claimOperation(eq(key), eq(cashier1), any())).thenReturn(opProcessing);
+        when(billProcessingService.executeBillCreation(any(), any(), eq(key), any(), any(), anyBoolean(), any()))
+                .thenThrow(new BusinessException("Dish is out of stock"));
+
+        assertThatThrownBy(() -> billService.createBill(req, cashier1, key))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Dish is out of stock");
+
+        // Verify failure was recorded in isolated transaction
+        verify(billOperationRegistrationService).markFailed(key, "Dish is out of stock");
     }
 
     @Test
@@ -180,90 +195,124 @@ class BillIdempotencyTest {
         bill.setId(777L);
         bill.setBillNumber("TSS-20261113-0007");
         bill.setIdempotencyKey(key);
-        bill.setGrandTotal(BigDecimal.valueOf(200.00));
-        bill.setSubtotal(BigDecimal.valueOf(200.00));
+        bill.setGrandTotal(BigDecimal.valueOf(350.00));
+        bill.setSubtotal(BigDecimal.valueOf(350.00));
         bill.setTotalTax(BigDecimal.ZERO);
         bill.setCashier(cashier1);
 
         when(billRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(bill));
 
-        BillOperationResponse opResp = billService.reconcileOperation(key, cashier1);
+        BillOperationResponse res = billService.reconcileOperation(key, cashier1);
 
-        assertThat(opResp.getStatus()).isEqualTo("SUCCEEDED");
-        assertThat(opResp.getBill()).isNotNull();
-        assertThat(opResp.getBill().getBillNumber()).isEqualTo("TSS-20261113-0007");
+        assertThat(res.getStatus()).isEqualTo("SUCCEEDED");
+        assertThat(res.getBill()).isNotNull();
+        assertThat(res.getBill().getBillNumber()).isEqualTo("TSS-20261113-0007");
     }
 
     @Test
-    @DisplayName("Reconcile operation returns PROCESSING when in-flight")
-    void testReconcileProcessingOperation() {
+    @DisplayName("Reconcile operation returns PROCESSING when still in flight and does NOT fail after 60 seconds")
+    void testReconcileProcessingOperationNotTimedOutAfter60Seconds() {
         String key = "IDEMP-TEST-004";
 
         BillOperation op = new BillOperation(key, cashier1, BillOperation.STATUS_PROCESSING);
-        op.setCreatedAt(Instant.now());
+        // Stale timestamp (120 seconds old)
+        op.setCreatedAt(Instant.now().minusSeconds(120));
 
         when(billRepository.findByIdempotencyKey(key)).thenReturn(Optional.empty());
         when(billOperationRepository.findByOperationKey(key)).thenReturn(Optional.of(op));
 
-        BillOperationResponse opResp = billService.reconcileOperation(key, cashier1);
+        BillOperationResponse res = billService.reconcileOperation(key, cashier1);
 
-        assertThat(opResp.getStatus()).isEqualTo("PROCESSING");
-        assertThat(opResp.getBill()).isNull();
+        // Must NOT be marked failed merely because 60 seconds passed!
+        assertThat(res.getStatus()).isEqualTo("PROCESSING");
     }
 
     @Test
-    @DisplayName("Reconcile operation returns DEFINITIVELY_FAILED when operation failed")
-    void testReconcileDefinitivelyFailedOperation() {
+    @DisplayName("Reconcile operation returns NEEDS_REVIEW when flagged for manual inspection")
+    void testReconcileNeedsReviewOperation() {
+        String key = "IDEMP-TEST-REVIEW";
+
+        BillOperation op = new BillOperation(key, cashier1, BillOperation.STATUS_NEEDS_REVIEW);
+        op.setErrorMessage("Price snapshot discrepancy requires manager review");
+
+        when(billRepository.findByIdempotencyKey(key)).thenReturn(Optional.empty());
+        when(billOperationRepository.findByOperationKey(key)).thenReturn(Optional.of(op));
+
+        BillOperationResponse res = billService.reconcileOperation(key, cashier1);
+
+        assertThat(res.getStatus()).isEqualTo("NEEDS_REVIEW");
+        assertThat(res.getMessage()).contains("Price snapshot discrepancy");
+    }
+
+    @Test
+    @DisplayName("Reconcile operation returns DEFINITIVELY_FAILED when operation definitively failed")
+    void testReconcileFailedOperation() {
         String key = "IDEMP-TEST-005";
 
         BillOperation op = new BillOperation(key, cashier1, BillOperation.STATUS_DEFINITIVELY_FAILED);
-        op.setErrorMessage("Dish 'Burger' is currently out of stock");
-        op.setCreatedAt(Instant.now());
+        op.setErrorMessage("Stock depleted for item 101");
 
         when(billRepository.findByIdempotencyKey(key)).thenReturn(Optional.empty());
         when(billOperationRepository.findByOperationKey(key)).thenReturn(Optional.of(op));
 
-        BillOperationResponse opResp = billService.reconcileOperation(key, cashier1);
+        BillOperationResponse res = billService.reconcileOperation(key, cashier1);
 
-        assertThat(opResp.getStatus()).isEqualTo("DEFINITIVELY_FAILED");
-        assertThat(opResp.getMessage()).contains("out of stock");
-        assertThat(opResp.getBill()).isNull();
+        assertThat(res.getStatus()).isEqualTo("DEFINITIVELY_FAILED");
+        assertThat(res.getMessage()).contains("Stock depleted");
     }
 
     @Test
-    @DisplayName("Reconcile operation returns NOT_FOUND when key does not exist")
+    @DisplayName("Reconcile operation returns NOT_FOUND when neither bill nor operation exists")
     void testReconcileNotFoundOperation() {
-        String key = "IDEMP-UNKNOWN-KEY";
+        String key = "IDEMP-NON-EXISTENT";
 
         when(billRepository.findByIdempotencyKey(key)).thenReturn(Optional.empty());
         when(billOperationRepository.findByOperationKey(key)).thenReturn(Optional.empty());
 
-        BillOperationResponse opResp = billService.reconcileOperation(key, cashier1);
+        BillOperationResponse res = billService.reconcileOperation(key, cashier1);
 
-        assertThat(opResp.getStatus()).isEqualTo("NOT_FOUND");
-        assertThat(opResp.getBill()).isNull();
+        assertThat(res.getStatus()).isEqualTo("NOT_FOUND");
     }
 
     @Test
-    @DisplayName("Reconcile operation blocks unauthorized cashier from viewing another cashier's record")
-    void testReconcileUnauthorizedAccessBlocked() {
+    @DisplayName("Reconcile operation: Admin can reconcile any cashier's operation")
+    void testReconcileAdminCanAccessAnyCashierOperation() {
         String key = "IDEMP-TEST-006";
 
         Bill bill = new Bill();
         bill.setId(888L);
         bill.setBillNumber("TSS-20261113-0008");
         bill.setIdempotencyKey(key);
-        bill.setCashier(cashier1); // Belongs to cashier1
+        bill.setGrandTotal(BigDecimal.valueOf(150.00));
+        bill.setSubtotal(BigDecimal.valueOf(150.00));
+        bill.setTotalTax(BigDecimal.ZERO);
+        bill.setCashier(cashier1); // Belongs to cashier 1
 
         when(billRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(bill));
 
-        // Cashier 2 tries to access Cashier 1's operation
+        // Reconciled by adminUser
+        BillOperationResponse res = billService.reconcileOperation(key, adminUser);
+
+        assertThat(res.getStatus()).isEqualTo("SUCCEEDED");
+        assertThat(res.getBill().getBillNumber()).isEqualTo("TSS-20261113-0008");
+    }
+
+    @Test
+    @DisplayName("Reconcile operation: Cashier cannot access another cashier's operation (403 Forbidden)")
+    void testReconcileOtherCashierAccessDenied() {
+        String key = "IDEMP-TEST-007";
+
+        Bill bill = new Bill();
+        bill.setId(999L);
+        bill.setBillNumber("TSS-20261113-0009");
+        bill.setIdempotencyKey(key);
+        bill.setCashier(cashier1); // Belongs to cashier 1
+
+        when(billRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(bill));
+
+        // Cashier 2 tries to reconcile cashier 1's operation
         assertThatThrownBy(() -> billService.reconcileOperation(key, cashier2))
                 .isInstanceOf(AccessDeniedException.class)
-                .hasMessageContaining("Unauthorized to access operation record");
-
-        // Admin is authorized to access any cashier's operation
-        BillOperationResponse adminResp = billService.reconcileOperation(key, adminUser);
-        assertThat(adminResp.getStatus()).isEqualTo("SUCCEEDED");
+                .hasMessageContaining("Unauthorized to access operation record belonging to another cashier");
     }
 }

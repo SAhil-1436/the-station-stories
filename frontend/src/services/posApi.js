@@ -86,11 +86,89 @@ export const getThermalReceipt = async (billId, width = '80mm') => {
   return response.data;
 };
 
+/**
+ * Registers this browser terminal as a trusted POS device
+ * @param {Object} data DeviceRegistrationRequest
+ * @returns {Promise<Object>} DeviceRegistrationResponse
+ */
+export const registerPosDevice = async (data) => {
+  const response = await api.post('/api/v1/pos/devices/register', data);
+  return response.data;
+};
+
+/**
+ * Checks enrollment and active status of this device
+ * @param {string} deviceId
+ * @returns {Promise<Object>} Device status
+ */
+export const getPosDeviceStatus = async (deviceId) => {
+  const response = await api.get(`/api/v1/pos/devices/status/${encodeURIComponent(deviceId)}`);
+  return response.data;
+};
+
+/**
+ * Revokes a POS device
+ * @param {string} deviceId
+ * @returns {Promise<Object>}
+ */
+export const revokePosDevice = async (deviceId) => {
+  const response = await api.post(`/api/v1/pos/devices/${encodeURIComponent(deviceId)}/revoke`);
+  return response.data;
+};
+
+/**
+ * Requests an asymmetrically signed 24-hour offline lease
+ * @param {Object} data OfflineLeaseRequest
+ * @returns {Promise<Object>} OfflineLeaseResponse
+ */
+export const requestOfflineLease = async (data) => {
+  const response = await api.post('/api/v1/pos/auth/offline-lease', data);
+  return response.data;
+};
+
+/**
+ * Fetches the backend RSA-2048 public verification key
+ * @returns {Promise<{algorithm: string, format: string, publicKey: string}>}
+ */
+export const getPosPublicKey = async () => {
+  const response = await api.get('/api/v1/pos/auth/public-key');
+  return response.data;
+};
+
+/**
+ * Synchronizes an offline-created bill to the backend
+ * @param {Object} syncRequest SyncBillRequest
+ * @returns {Promise<Object>} SyncBillResponse
+ */
+export const syncOfflineBill = async (syncRequest) => {
+  const response = await api.post('/api/v1/pos/sync/bills', syncRequest);
+  return response.data;
+};
+
+/**
+ * Batch-synchronizes multiple offline-created bills
+ * @param {Array<Object>} batchRequests Array of SyncBillRequest
+ * @returns {Promise<Array<Object>>} List of SyncBillResponse
+ */
+export const syncBatchOfflineBills = async (batchRequests) => {
+  const response = await api.post('/api/v1/pos/sync/bills/batch', batchRequests);
+  return response.data;
+};
+
 export default {
   getPosCategories,
   getPosMenuItems,
   lookupCustomer,
   createPosBill,
+  getBillOperationStatus,
   getPosBillById,
   getThermalReceipt,
+  registerPosDevice,
+  getPosDeviceStatus,
+  revokePosDevice,
+  requestOfflineLease,
+  getPosPublicKey,
+  syncOfflineBill,
+  syncBatchOfflineBills,
 };
+

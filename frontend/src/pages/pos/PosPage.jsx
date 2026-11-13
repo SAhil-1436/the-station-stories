@@ -24,6 +24,11 @@ import {
   Edit3,
   ArrowRight,
   ShieldAlert,
+  Wifi,
+  WifiOff,
+  HardDrive,
+  Lock,
+  Database,
 } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
 import * as posApi from '../../services/posApi';
@@ -32,7 +37,19 @@ import PosShortcutsModal from '../../components/pos/PosShortcutsModal';
 import PosCheckoutModal from '../../components/pos/PosCheckoutModal';
 import PosBillSuccessModal from '../../components/pos/PosBillSuccessModal';
 import ConfirmModal from '../../components/admin/ConfirmModal';
+import PosSyncCenterModal from '../../components/pos/PosSyncCenterModal';
+import PosBackupRestoreModal from '../../components/pos/PosBackupRestoreModal';
+import PosIdleLockModal from '../../components/pos/PosIdleLockModal';
 import { getAmbiguousMarker } from '../../utils/submissionLifecycle';
+import {
+  posDb,
+  cacheCatalog,
+  getCachedCatalog,
+  getRegisteredDevice,
+  saveDeviceRegistration,
+  saveOfflineLease,
+} from '../../db/posDatabase';
+import syncEngine from '../../services/syncEngine';
 
 /**
  * POS Foundation & Desktop Counter Billing Interface (Phase 5.1 & Phase 5.2)
@@ -85,6 +102,14 @@ export default function PosPage() {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
 
+  // Phase 5.4 Offline PWA Modals & State
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isIdleLocked, setIsIdleLocked] = useState(false);
+  const [isUsingCachedCatalog, setIsUsingCachedCatalog] = useState(false);
+
   // Authoritative Completed Bill Details
   const [finalizedBill, setFinalizedBill] = useState(null);
   const [previewedTotalAtCheckout, setPreviewedTotalAtCheckout] = useState(0);
@@ -107,22 +132,137 @@ export default function PosPage() {
     setAmbiguousMarker(getAmbiguousMarker());
   }, [isCheckoutModalOpen]);
 
+  // Sync Engine Background Lifecycle
+  useEffect(() => {
+    syncEngine.start();
+    const unsubscribe = syncEngine.subscribe((status) => {
+      setIsOnline(status.isOnline);
+      setPendingSyncCount(status.totalUnsynced);
+    });
+    return () => {
+      unsubscribe();
+      syncEngine.stop();
+    };
+  }, []);
+
+  // 5-minute Inactivity Auto-Lock
+  useEffect(() => {
+    let idleTimer;
+    const resetTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        setIsIdleLocked(true);
+      }, 5 * 60 * 1000); // 5 minutes inactivity
+    };
+
+    const activityEvents = ['mousemove', 'keydown', 'click', 'touchstart'];
+    activityEvents.forEach((evt) => window.addEventListener(evt, resetTimer));
+    resetTimer();
+
+    return () => {
+      clearTimeout(idleTimer);
+      activityEvents.forEach((evt) => window.removeEventListener(evt, resetTimer));
+    };
+  }, []);
+
+  // Device Enrollment & Asymmetric Offline Lease Initialization
+  useEffect(() => {
+    async function initDeviceAndLease() {
+      try {
+        let device = await getRegisteredDevice();
+        if (!device && syncEngine.isOnline) {
+          const deviceId = `DEV-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+          const regRes = await posApi.registerPosDevice({
+            deviceId,
+            deviceName: 'Station Stories Counter POS',
+            browserInfo: navigator.userAgent ? navigator.userAgent.slice(0, 100) : 'Browser',
+            osInfo: navigator.platform || 'macOS',
+          });
+          await saveDeviceRegistration(regRes);
+          device = regRes;
+        }
+
+        if (syncEngine.isOnline && user?.id) {
+          // Fetch and store backend RSA-2048 public key
+          try {
+            const pubKeyRes = await posApi.getPosPublicKey();
+            if (pubKeyRes?.publicKey) {
+              await posDb.appSettings.put({
+                key: 'pos_rsa_public_key',
+                value: pubKeyRes.publicKey,
+                updatedAt: new Date().toISOString(),
+              });
+            }
+          } catch (e) {
+            console.warn('Failed to fetch POS public key:', e);
+          }
+
+          // Request / Refresh 24-hour asymmetric offline lease
+          if (device?.deviceId) {
+            try {
+              const leaseRes = await posApi.requestOfflineLease({
+                deviceId: device.deviceId,
+                cashierId: user.id,
+                cashierUsername: user.username,
+              });
+              if (leaseRes?.leaseToken) {
+                await saveOfflineLease({
+                  cashierId: user.id,
+                  deviceId: device.deviceId,
+                  cashierUsername: user.username,
+                  cashierFullName: user.fullName || user.username,
+                  leaseToken: leaseRes.leaseToken,
+                  publicKeySpkiBase64: leaseRes.publicKeySpkiBase64,
+                  issuedAt: leaseRes.issuedAt,
+                  expiresAt: leaseRes.expiresAt,
+                });
+              }
+            } catch (leaseErr) {
+              console.warn('Failed to renew offline lease:', leaseErr);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error during POS device/lease initialization:', err);
+      }
+    }
+
+    initDeviceAndLease();
+  }, [user]);
+
   // Refs
   const searchInputRef = useRef(null);
 
-  // 1. Fetch live categories and menu items
+  // 1. Fetch live categories and menu items with IndexedDB offline caching
   const fetchCatalog = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setIsUsingCachedCatalog(false);
     try {
       const [catsData, itemsData] = await Promise.all([
         posApi.getPosCategories(),
         posApi.getPosMenuItems({ availableOnly: false }),
       ]);
-      setCategories(Array.isArray(catsData) ? catsData : []);
-      setMenuItems(Array.isArray(itemsData) ? itemsData : []);
+      const validCats = Array.isArray(catsData) ? catsData : [];
+      const validItems = Array.isArray(itemsData) ? itemsData : [];
+      setCategories(validCats);
+      setMenuItems(validItems);
+      // Cache in IndexedDB for offline counter operations
+      await cacheCatalog(validCats, validItems);
     } catch (err) {
-      setError(err.message || 'Failed to connect to billing server. Please check backend.');
+      console.warn('Network catalog fetch failed, loading IndexedDB offline cache:', err);
+      try {
+        const cached = await getCachedCatalog();
+        if (cached.isCached) {
+          setCategories(cached.categories);
+          setMenuItems(cached.menuItems);
+          setIsUsingCachedCatalog(true);
+        } else {
+          setError(err.message || 'Failed to connect to billing server and no offline cache available.');
+        }
+      } catch (cacheErr) {
+        setError(err.message || 'Failed to connect to billing server.');
+      }
     } finally {
       setLoading(false);
     }
@@ -342,9 +482,12 @@ export default function PosPage() {
     setCustomerFound(null);
   };
 
-  // View Authoritative Finalized Thermal Receipt
-  const handleViewAuthoritativeReceipt = (billId) => {
+  // View Authoritative Finalized Thermal Receipt (server or local bill)
+  const handleViewAuthoritativeReceipt = (billId, billObj = null) => {
     setReceiptBillId(billId);
+    if (billObj) {
+      setFinalizedBill(billObj);
+    }
     setIsReceiptModalOpen(true);
   };
 
@@ -478,6 +621,84 @@ export default function PosPage() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden font-sans">
+      {/* Offline / Online Top Bar Controls */}
+      <div className="mb-2 px-3.5 py-1.5 rounded-2xl bg-white border border-lavender-200 shadow-xs flex flex-wrap items-center justify-between gap-2 text-xs shrink-0">
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <button
+              type="button"
+              onClick={() => setIsSyncModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 font-semibold text-[11px] shadow-2xs hover:bg-emerald-100 transition-colors"
+              title="Online - Connected to billing server. Click to open Sync Center."
+            >
+              <Wifi className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Online</span>
+              {pendingSyncCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-mono font-bold">
+                  {pendingSyncCount} unsynced
+                </span>
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsSyncModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[11px] shadow-2xs hover:bg-amber-200 transition-colors"
+              title="Offline Mode Active - Cash billing only. Click to open Sync Center."
+            >
+              <WifiOff className="w-3.5 h-3.5 text-amber-700" />
+              <span>Offline Mode (Cash Only)</span>
+              {pendingSyncCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[10px] font-mono font-bold">
+                  {pendingSyncCount} queued
+                </span>
+              )}
+            </button>
+          )}
+
+          {isUsingCachedCatalog && (
+            <span className="text-[11px] text-body-muted italic hidden sm:inline">
+              (Loaded from offline cache)
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Sync Center Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsSyncModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-body-muted hover:text-plum-royal hover:bg-lavender-50 transition-colors text-[11px] font-medium border border-lavender-200"
+            title="Open Offline Sync Center"
+          >
+            <Database className="w-3.5 h-3.5 text-gold" />
+            <span>Sync Center</span>
+          </button>
+
+          {/* USB Backup / Restore Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsBackupModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-body-muted hover:text-plum-royal hover:bg-lavender-50 transition-colors text-[11px] font-medium border border-lavender-200"
+            title="USB Backup & Restore"
+          >
+            <HardDrive className="w-3.5 h-3.5 text-gold" />
+            <span>USB Backup</span>
+          </button>
+
+          {/* Manual Screen Lock Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsIdleLocked(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-body-muted hover:text-plum-royal hover:bg-lavender-50 transition-colors text-[11px] font-medium border border-lavender-200"
+            title="Lock Counter (Requires PIN)"
+          >
+            <Lock className="w-3.5 h-3.5 text-plum-royal" />
+            <span>Lock</span>
+          </button>
+        </div>
+      </div>
+
       {/* Ambiguous Submission Warning & Counter Lockout Banner */}
       {ambiguousMarker && (
         <div className="mb-2.5 p-3 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm shrink-0">
@@ -1148,7 +1369,7 @@ export default function PosPage() {
         confirmVariant="danger"
       />
 
-      {/* 2. Functional Checkout & Payment Settlement Modal (Phase 5.2) */}
+      {/* 2. Functional Checkout & Payment Settlement Modal (Phase 5.2 & Phase 5.4 Offline PWA) */}
       <PosCheckoutModal
         isOpen={isCheckoutModalOpen}
         onClose={() => setIsCheckoutModalOpen(false)}
@@ -1160,6 +1381,7 @@ export default function PosPage() {
         subtotal={financialTotals.subtotal}
         payableTotal={financialTotals.payableTotal}
         onBillSuccess={handleBillSuccess}
+        isOffline={!isOnline}
       />
 
       {/* 3. Completed Bill / Invoice Success Modal (Phase 5.2) */}
@@ -1171,7 +1393,7 @@ export default function PosPage() {
         onStartNewOrder={handleStartNewOrder}
       />
 
-      {/* 4. ESC/POS Thermal Receipt Modal (Authoritative & Draft modes) */}
+      {/* 4. 58mm Thermal Receipt Modal (Authoritative & Local offline modes) */}
       <PosReceiptPreviewModal
         isOpen={isReceiptModalOpen}
         onClose={() => {
@@ -1179,6 +1401,7 @@ export default function PosPage() {
           setReceiptBillId(null);
         }}
         billId={receiptBillId}
+        localBill={finalizedBill}
         cart={cart}
         orderType={orderType}
         tableRef={cabinTableRef}
@@ -1195,6 +1418,26 @@ export default function PosPage() {
       <PosShortcutsModal
         isOpen={isShortcutsModalOpen}
         onClose={() => setIsShortcutsModalOpen(false)}
+      />
+
+      {/* 6. Offline Sync Center Modal (Phase 5.4) */}
+      <PosSyncCenterModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+      />
+
+      {/* 7. USB Backup & Restore Modal (Phase 5.4) */}
+      <PosBackupRestoreModal
+        isOpen={isBackupModalOpen}
+        onClose={() => setIsBackupModalOpen(false)}
+      />
+
+      {/* 8. 5-minute Inactivity Idle Lock Modal (Phase 5.4) */}
+      <PosIdleLockModal
+        isLocked={isIdleLocked}
+        onUnlock={() => setIsIdleLocked(false)}
+        cashierName={user?.fullName || user?.username || 'Counter Cashier'}
+        cashierId={user?.id}
       />
     </div>
   );

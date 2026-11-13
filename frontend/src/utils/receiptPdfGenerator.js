@@ -69,8 +69,13 @@ function createReceiptElement(receipt) {
     <div style="border-bottom: 1px dashed #444; padding-bottom: 4px; margin-bottom: 4px; font-size: 8px;">
       <div style="display: flex; justify-content: space-between;">
         <span>BILL:</span>
-        <span style="font-weight: bold;">${escapeHtml(receipt.billNumber || '')}</span>
+        <span style="font-weight: bold;">${escapeHtml(receipt.billNumber || receipt.localReference || '')}</span>
       </div>
+      ${receipt.isOffline ? `
+        <div style="text-align: center; font-size: 7.5px; font-weight: bold; background: #eee; padding: 1px 0; margin: 2px 0;">
+          * OFFLINE PROVISIONAL BILL *
+        </div>
+      ` : ''}
       <div style="display: flex; justify-content: space-between;">
         <span>DATE: ${escapeHtml(receipt.date || '')}</span>
         <span>TIME: ${escapeHtml(receipt.time || '')}</span>
@@ -158,12 +163,13 @@ function escapeHtml(str) {
  * @returns {Promise<{ success: boolean, filename: string }>}
  */
 export async function downloadReceiptPdf(receiptData) {
-  if (!receiptData || !receiptData.billNumber) {
-    throw new Error('Invalid receipt data: billNumber is required for PDF generation.');
+  const billNum = receiptData?.billNumber || receiptData?.localReference;
+  if (!receiptData || !billNum) {
+    throw new Error('Invalid receipt data: billNumber or localReference is required for PDF generation.');
   }
 
   // Sanitize bill number for filename
-  const cleanBillNum = receiptData.billNumber.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const cleanBillNum = billNum.replace(/[^a-zA-Z0-9_-]/g, '_');
   const filename = `TSS-BILL-${cleanBillNum}.pdf`;
 
   // 1. Create offscreen element

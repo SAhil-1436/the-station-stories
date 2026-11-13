@@ -16,6 +16,7 @@ import {
   Server,
   RefreshCw,
   Lock,
+  WifiOff,
 } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
 import * as posApi from '../../services/posApi';
@@ -28,9 +29,15 @@ import {
   validateCashTender,
   generateIdempotencyKey,
 } from '../../utils/submissionLifecycle';
+import {
+  posDb,
+  createLocalBill,
+  getRegisteredDevice,
+  getOfflineLease,
+} from '../../db/posDatabase';
 
 /**
- * POS Checkout & Payment Finalization Modal (Phase 5.3 Correction)
+ * POS Checkout & Payment Finalization Modal (Phase 5.3 Correction + Phase 5.4 Offline PWA)
  *
  * Implements:
  * - Robust 5-state submission lifecycle: idle, submitting, succeeded, definitively_failed, ambiguous_outcome
@@ -42,6 +49,7 @@ import {
  * - Safe persistence of ambiguous markers with original idempotencyKey preserved
  * - Authoritative backend-driven reconciliation via GET /api/v1/pos/bills/operations/{operationKey}
  * - Zero fake BillResponse objects, zero unsafe client-side manual unlocks
+ * - Offline-first cash billing: saves locally to Dexie and queues for background sync when offline
  * - Ivory + Royal Plum + Champagne Gold design system
  */
 export default function PosCheckoutModal({
@@ -55,6 +63,7 @@ export default function PosCheckoutModal({
   subtotal = 0,
   payableTotal = 0,
   onBillSuccess,
+  isOffline = false,
 }) {
   const { user, isAdmin, isCashier } = useAuth();
 
@@ -196,6 +205,66 @@ export default function PosCheckoutModal({
       setActiveIdempotencyKey(keyToUse);
     }
 
+    // OFFLINE BILLING PATH
+    if (isOffline) {
+      if (paymentMethod !== 'CASH') {
+        isSubmittingRef.current = false;
+        setSubmissionState(SUBMISSION_LIFECYCLE.DEFINITIVELY_FAILED);
+        setErrorMessage('Offline billing only permits Cash payments.');
+        return;
+      }
+
+      try {
+        const device = await getRegisteredDevice();
+        if (!device || device.isRevoked) {
+          throw new Error('This terminal is not enrolled as a registered POS device or has been revoked.');
+        }
+
+        const lease = await getOfflineLease(user?.id);
+        if (!lease || !lease.leaseToken || (lease.expiresAt && new Date(lease.expiresAt) < new Date())) {
+          throw new Error('Offline lease is missing or expired. Connect online to renew your 24-hour cashier lease.');
+        }
+
+        const localBill = await createLocalBill({
+          clientUuid: keyToUse,
+          deviceId: device.deviceId,
+          cashierId: user?.id,
+          cashierName: user?.username || user?.fullName || 'Cashier',
+          orderType: orderType,
+          cabinTableRef: orderType === 'DINE_IN' ? cabinTableRef.trim() : null,
+          customerPhone: customerPhone.trim() ? customerPhone.trim() : null,
+          customerName: customerName.trim() ? customerName.trim() : null,
+          paymentMethod: 'CASH',
+          subtotal: subtotal,
+          taxRate: 5.0,
+          taxAmount: Math.round(subtotal * 0.05 * 100) / 100,
+          discountAmount: 0,
+          payableAmount: payableTotal,
+          notes: orderNotes.trim() ? orderNotes.trim() : null,
+          items: cart.map((item) => ({
+            menuItemId: item.id,
+            name: item.name,
+            unitPrice: item.price,
+            quantity: item.quantity,
+            subtotal: Math.round(item.price * item.quantity * 100) / 100,
+            notes: item.notes && item.notes.trim() ? item.notes.trim() : null,
+          })),
+        });
+
+        isSubmittingRef.current = false;
+        setSubmissionState(SUBMISSION_LIFECYCLE.SUCCEEDED);
+        clearAmbiguousMarker();
+        onBillSuccess(localBill);
+        return;
+      } catch (offlineErr) {
+        isSubmittingRef.current = false;
+        setSubmissionState(SUBMISSION_LIFECYCLE.DEFINITIVELY_FAILED);
+        setErrorMessage(offlineErr.message || 'Failed to save offline bill locally.');
+        return;
+      }
+    }
+
+    // ONLINE AUTHORITATIVE PATH
     // Build authoritative CreateBillRequest payload (never sending client prices)
     const billPayload = {
       orderType: orderType,
@@ -563,9 +632,17 @@ export default function PosCheckoutModal({
 
               {/* Payment Method Selector */}
               <div className="space-y-2">
-                <label className="block font-serif font-bold text-sm text-plum-royal">
-                  Select Settlement Payment Method:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block font-serif font-bold text-sm text-plum-royal">
+                    Select Settlement Payment Method:
+                  </label>
+                  {isOffline && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      <WifiOff className="w-3 h-3" />
+                      Offline: Cash Only
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-3 gap-2.5">
                   {/* CASH */}
                   <button
@@ -589,39 +666,47 @@ export default function PosCheckoutModal({
                   {/* UPI */}
                   <button
                     type="button"
-                    disabled={submissionState === SUBMISSION_LIFECYCLE.SUBMITTING}
+                    disabled={submissionState === SUBMISSION_LIFECYCLE.SUBMITTING || isOffline}
                     onClick={() => {
+                      if (isOffline) return;
                       setPaymentMethod('UPI');
                       setUpiConfirmed(false);
                     }}
+                    title={isOffline ? 'UPI payment unavailable offline' : 'UPI QR Settlement'}
                     className={`py-3 px-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
-                      paymentMethod === 'UPI'
+                      isOffline
+                        ? 'opacity-40 cursor-not-allowed bg-zinc-50 border-zinc-200 text-zinc-400'
+                        : paymentMethod === 'UPI'
                         ? 'bg-plum-royal text-ivory border-plum-royal shadow-soft'
                         : 'bg-white hover:bg-lavender-50 text-body border-lavender-200'
                     }`}
                   >
-                    <QrCode className={`w-5 h-5 ${paymentMethod === 'UPI' ? 'text-gold' : 'text-plum-royal'}`} />
+                    <QrCode className={`w-5 h-5 ${paymentMethod === 'UPI' && !isOffline ? 'text-gold' : 'text-plum-royal'}`} />
                     <span className="text-xs font-bold">UPI QR</span>
-                    <span className="text-[10px] opacity-75">Merchant App</span>
+                    <span className="text-[10px] opacity-75">{isOffline ? 'Disabled' : 'Merchant App'}</span>
                   </button>
 
                   {/* CARD */}
                   <button
                     type="button"
-                    disabled={submissionState === SUBMISSION_LIFECYCLE.SUBMITTING}
+                    disabled={submissionState === SUBMISSION_LIFECYCLE.SUBMITTING || isOffline}
                     onClick={() => {
+                      if (isOffline) return;
                       setPaymentMethod('CARD');
                       setCardConfirmed(false);
                     }}
+                    title={isOffline ? 'Card payment unavailable offline' : 'EDC Card Terminal'}
                     className={`py-3 px-3 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
-                      paymentMethod === 'CARD'
+                      isOffline
+                        ? 'opacity-40 cursor-not-allowed bg-zinc-50 border-zinc-200 text-zinc-400'
+                        : paymentMethod === 'CARD'
                         ? 'bg-plum-royal text-ivory border-plum-royal shadow-soft'
                         : 'bg-white hover:bg-lavender-50 text-body border-lavender-200'
                     }`}
                   >
-                    <CreditCard className={`w-5 h-5 ${paymentMethod === 'CARD' ? 'text-gold' : 'text-plum-royal'}`} />
+                    <CreditCard className={`w-5 h-5 ${paymentMethod === 'CARD' && !isOffline ? 'text-gold' : 'text-plum-royal'}`} />
                     <span className="text-xs font-bold">CARD</span>
-                    <span className="text-[10px] opacity-75">EDC Terminal</span>
+                    <span className="text-[10px] opacity-75">{isOffline ? 'Disabled' : 'EDC Terminal'}</span>
                   </button>
                 </div>
               </div>

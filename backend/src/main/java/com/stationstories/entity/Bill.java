@@ -24,6 +24,18 @@ public class Bill {
     @Column(name = "idempotency_key", unique = true, length = 100)
     private String idempotencyKey;
 
+    @Column(name = "local_bill_reference", length = 100)
+    private String localBillReference;
+
+    @Column(name = "device_id", length = 100)
+    private String deviceId;
+
+    @Column(name = "is_offline_created", nullable = false)
+    private Boolean isOfflineCreated = false;
+
+    @Column(name = "synced_at")
+    private Instant syncedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "order_type", nullable = false, length = 20)
     private OrderType orderType = OrderType.DINE_IN;
@@ -411,5 +423,37 @@ public class Bill {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getLocalBillReference() {
+        return localBillReference;
+    }
+
+    public void setLocalBillReference(String localBillReference) {
+        this.localBillReference = localBillReference;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
+    }
+
+    public Boolean getIsOfflineCreated() {
+        return isOfflineCreated;
+    }
+
+    public void setIsOfflineCreated(Boolean isOfflineCreated) {
+        this.isOfflineCreated = isOfflineCreated;
+    }
+
+    public Instant getSyncedAt() {
+        return syncedAt;
+    }
+
+    public void setSyncedAt(Instant syncedAt) {
+        this.syncedAt = syncedAt;
     }
 }

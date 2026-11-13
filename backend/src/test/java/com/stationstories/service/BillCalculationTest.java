@@ -9,6 +9,7 @@ import com.stationstories.entity.enums.OrderType;
 import com.stationstories.entity.enums.PaymentMethod;
 import com.stationstories.exception.BusinessException;
 import com.stationstories.repository.BillNumberSequenceRepository;
+import com.stationstories.repository.BillOperationRepository;
 import com.stationstories.repository.BillRepository;
 import com.stationstories.repository.MenuItemRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -54,7 +56,11 @@ class BillCalculationTest {
     @Mock
     private AuditLogService auditLogService;
 
-    @InjectMocks
+    @Mock
+    private BillOperationRepository billOperationRepository;
+
+    private BillOperationRegistrationService billOperationRegistrationService;
+    private BillProcessingService billProcessingService;
     private BillService billService;
 
     private User testCashier;
@@ -92,6 +98,18 @@ class BillCalculationTest {
             b.setId(500L);
             return b;
         });
+
+        billProcessingService = new BillProcessingService(
+                billRepository, sequenceRepository, menuItemRepository, customerService, settingService, auditLogService
+        );
+        billOperationRegistrationService = mock(BillOperationRegistrationService.class);
+        when(billOperationRegistrationService.claimOperation(any(), any(), any()))
+                .thenAnswer(inv -> new BillOperation(inv.getArgument(0), inv.getArgument(1), BillOperation.STATUS_PROCESSING));
+
+        billService = new BillService(
+                billRepository, sequenceRepository, menuItemRepository, customerService, settingService, auditLogService,
+                billOperationRepository, billOperationRegistrationService, billProcessingService
+        );
     }
 
     @Test

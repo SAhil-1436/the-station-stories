@@ -48,6 +48,8 @@ public class BillService {
     private final RestaurantSettingService settingService;
     private final AuditLogService auditLogService;
     private final BillOperationRepository billOperationRepository;
+    private final BillOperationRegistrationService billOperationRegistrationService;
+    private final BillProcessingService billProcessingService;
 
     @Value("${app.public-url:http://localhost:5173}")
     private String publicBaseUrl;
@@ -58,7 +60,9 @@ public class BillService {
                        CustomerService customerService,
                        RestaurantSettingService settingService,
                        AuditLogService auditLogService,
-                       BillOperationRepository billOperationRepository) {
+                       BillOperationRepository billOperationRepository,
+                       BillOperationRegistrationService billOperationRegistrationService,
+                       BillProcessingService billProcessingService) {
         this.billRepository = billRepository;
         this.sequenceRepository = sequenceRepository;
         this.menuItemRepository = menuItemRepository;
@@ -66,14 +70,14 @@ public class BillService {
         this.settingService = settingService;
         this.auditLogService = auditLogService;
         this.billOperationRepository = billOperationRepository;
+        this.billOperationRegistrationService = billOperationRegistrationService;
+        this.billProcessingService = billProcessingService;
     }
 
-    @Transactional
     public BillResponse createBill(CreateBillRequest request, User cashier) {
         return createBill(request, cashier, null);
     }
 
-    @Transactional
     public BillResponse createBill(CreateBillRequest request, User cashier, String idempotencyKey) {
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new BusinessException("Cannot create an empty bill. At least one dish item is required.");
@@ -87,197 +91,57 @@ public class BillService {
             effectiveKey = idempotencyKey.trim();
         } else if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().trim().isEmpty()) {
             effectiveKey = request.getIdempotencyKey().trim();
-        }
-
-        BillOperation operation = null;
-
-        if (effectiveKey != null) {
-            // Check if bill with this idempotency key already committed
-            Optional<Bill> existingBill = billRepository.findByIdempotencyKey(effectiveKey);
-            if (existingBill.isPresent()) {
-                log.info("Idempotent bill creation: existing bill #{} returned for key {}",
-                        existingBill.get().getBillNumber(), effectiveKey);
-                return mapToResponse(existingBill.get(), settings);
-            }
-
-            // Check if an operation record already exists
-            Optional<BillOperation> existingOp = billOperationRepository.findByOperationKey(effectiveKey);
-            if (existingOp.isPresent()) {
-                BillOperation op = existingOp.get();
-                if (BillOperation.STATUS_SUCCEEDED.equals(op.getStatus()) && op.getBill() != null) {
-                    log.info("Idempotent bill operation: already succeeded with bill #{} for key {}",
-                            op.getBill().getBillNumber(), effectiveKey);
-                    return mapToResponse(op.getBill(), settings);
-                } else if (BillOperation.STATUS_PROCESSING.equals(op.getStatus())) {
-                    if (Duration.between(op.getCreatedAt(), Instant.now()).getSeconds() > 60) {
-                        op.setStatus(BillOperation.STATUS_DEFINITIVELY_FAILED);
-                        op.setErrorMessage("Prior operation timed out with no bill committed");
-                        billOperationRepository.save(op);
-                    } else {
-                        throw new BusinessException("Bill creation for this operation key is currently processing. Please wait or query operation status.");
-                    }
-                } else if (BillOperation.STATUS_DEFINITIVELY_FAILED.equals(op.getStatus())) {
-                    throw new BusinessException("Bill creation for this operation key previously failed: " + op.getErrorMessage());
-                }
-            } else {
-                operation = new BillOperation(effectiveKey, cashier, BillOperation.STATUS_PROCESSING);
-                try {
-                    BillOperation registered = billOperationRepository.saveAndFlush(operation);
-                    if (registered != null) {
-                        operation = registered;
-                    }
-                } catch (Exception ex) {
-                    Optional<Bill> concurrentBill = billRepository.findByIdempotencyKey(effectiveKey);
-                    if (concurrentBill.isPresent()) {
-                        return mapToResponse(concurrentBill.get(), settings);
-                    }
-                    throw new BusinessException("Concurrent bill creation request detected with duplicate idempotency key.");
-                }
-            }
-        }
-
-        // 2. Process items and validate availability on the backend
-        List<BillItem> billItems = new ArrayList<>();
-        BigDecimal subtotal = BigDecimal.ZERO;
-
-        for (BillItemRequest itemReq : request.getItems()) {
-            MenuItem menuItem = menuItemRepository.findById(itemReq.getMenuItemId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Menu item not found with ID: " + itemReq.getMenuItemId()));
-
-            if (!menuItem.isAvailable()) {
-                throw new BusinessException("Dish '" + menuItem.getName() + "' is currently out of stock and cannot be billed.");
-            }
-
-            int quantity = Math.max(1, itemReq.getQuantity());
-            BigDecimal unitPrice = menuItem.getPrice();
-            BigDecimal itemSubtotal = unitPrice.multiply(BigDecimal.valueOf(quantity)).setScale(2, RoundingMode.HALF_UP);
-
-            BillItem billItem = new BillItem();
-            billItem.setMenuItem(menuItem);
-            billItem.setItemName(menuItem.getName());
-            billItem.setUnitPrice(unitPrice);
-            billItem.setQuantity(quantity);
-            billItem.setSubtotal(itemSubtotal);
-            billItem.setNotes(itemReq.getNotes() != null ? itemReq.getNotes().trim() : null);
-
-            billItems.add(billItem);
-            subtotal = subtotal.add(itemSubtotal);
-        }
-
-        subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
-
-        // 2. Authoritative backend discount calculation
-        BigDecimal discountAmount = BigDecimal.ZERO;
-        BigDecimal discountValue = request.getDiscountValue() != null ? request.getDiscountValue() : BigDecimal.ZERO;
-        DiscountType discountType = request.getDiscountType() != null ? request.getDiscountType() : DiscountType.NONE;
-
-        if (discountType == DiscountType.PERCENTAGE) {
-            if (discountValue.compareTo(BigDecimal.ZERO) > 0) {
-                discountAmount = subtotal.multiply(discountValue)
-                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-                discountAmount = discountAmount.min(subtotal);
-            }
-        } else if (discountType == DiscountType.FLAT) {
-            if (discountValue.compareTo(BigDecimal.ZERO) > 0) {
-                discountAmount = discountValue.min(subtotal).setScale(2, RoundingMode.HALF_UP);
-            }
-        }
-
-        BigDecimal taxableAmount = subtotal.subtract(discountAmount).max(BigDecimal.ZERO);
-
-        // 3. Authoritative backend GST tax calculation (Strictly 0.00% if gst_enabled = false)
-        BigDecimal taxRate = BigDecimal.ZERO;
-        BigDecimal cgstAmount = BigDecimal.ZERO;
-        BigDecimal sgstAmount = BigDecimal.ZERO;
-        BigDecimal totalTax = BigDecimal.ZERO;
-
-        if (settings.isGstEnabled()) {
-            BigDecimal cgstRate = settings.getCgstRate() != null ? settings.getCgstRate() : BigDecimal.ZERO;
-            BigDecimal sgstRate = settings.getSgstRate() != null ? settings.getSgstRate() : BigDecimal.ZERO;
-            taxRate = cgstRate.add(sgstRate);
-
-            if (cgstRate.compareTo(BigDecimal.ZERO) > 0) {
-                cgstAmount = taxableAmount.multiply(cgstRate)
-                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-            }
-            if (sgstRate.compareTo(BigDecimal.ZERO) > 0) {
-                sgstAmount = taxableAmount.multiply(sgstRate)
-                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-            }
-            totalTax = cgstAmount.add(sgstAmount).setScale(2, RoundingMode.HALF_UP);
-        }
-
-        BigDecimal grandTotal = taxableAmount.add(totalTax).setScale(2, RoundingMode.HALF_UP);
-
-        // 4. Thread-Safe Atomic Daily Bill Number Generation
-        LocalDate today = LocalDate.now();
-        BillNumberSequence sequence = sequenceRepository.findBySequenceDateForUpdate(today)
-                .orElseGet(() -> sequenceRepository.saveAndFlush(new BillNumberSequence(today, 0)));
-
-        int seqNum = sequence.incrementAndGet();
-        sequenceRepository.save(sequence);
-
-        String billNumber = String.format("TSS-%s-%04d", today.format(DateTimeFormatter.ofPattern("yyyyMMdd")), seqNum);
-        String invoiceUuid = UUID.randomUUID().toString();
-
-        // 5. Construct and populate Bill entity
-        Bill bill = new Bill();
-        bill.setBillNumber(billNumber);
-        bill.setInvoiceUuid(invoiceUuid);
-        bill.setIdempotencyKey(effectiveKey);
-        bill.setOrderType(request.getOrderType());
-        bill.setCabinTableRef(request.getCabinTableRef() != null ? request.getCabinTableRef().trim() : null);
-        bill.setCashier(cashier);
-        bill.setPaymentMethod(request.getPaymentMethod());
-        bill.setSubtotal(subtotal);
-        bill.setDiscountType(discountType);
-        bill.setDiscountValue(discountValue);
-        bill.setDiscountAmount(discountAmount);
-        bill.setTaxRate(taxRate);
-        bill.setCgstAmount(cgstAmount);
-        bill.setSgstAmount(sgstAmount);
-        bill.setTotalTax(totalTax);
-        bill.setGrandTotal(grandTotal);
-        bill.setPaymentStatus(PaymentStatus.PAID);
-        bill.setDeleted(false);
-        bill.setNotes(request.getNotes() != null ? request.getNotes().trim() : null);
-
-        // 6. Handle Customer Association & Stats
-        if (request.getCustomerPhone() != null && !request.getCustomerPhone().trim().isEmpty()) {
-            Customer customer = customerService.findOrCreateCustomer(request.getCustomerPhone(), request.getCustomerName());
-            customer.recordVisit(grandTotal);
-            bill.setCustomer(customer);
-            bill.setCustomerNameSnapshot(customer.getName());
-            bill.setCustomerPhoneSnapshot(customer.getPhone());
         } else {
-            bill.setCustomer(null);
-            String walkInName = (request.getCustomerName() != null && !request.getCustomerName().trim().isEmpty())
-                    ? request.getCustomerName().trim() : "Walk-in Customer";
-            bill.setCustomerNameSnapshot(walkInName);
-            bill.setCustomerPhoneSnapshot(null);
+            effectiveKey = "OP-" + UUID.randomUUID().toString();
         }
 
-        // Attach line items
-        for (BillItem item : billItems) {
-            bill.addItem(item);
+        // 2. Claim operation in isolated REQUIRES_NEW transaction before bill processing
+        BillOperation op = billOperationRegistrationService.claimOperation(effectiveKey, cashier, request.getDeviceId());
+
+        // 3. Inspect existing state if replaying
+        if (BillOperation.STATUS_SUCCEEDED.equals(op.getStatus())) {
+            Bill existingBill = op.getBill();
+            if (existingBill == null) {
+                existingBill = billRepository.findByIdempotencyKey(effectiveKey).orElse(null);
+            }
+            if (existingBill != null) {
+                log.info("Idempotent bill creation: existing bill #{} returned for key {}",
+                        existingBill.getBillNumber(), effectiveKey);
+                return mapToResponse(existingBill, settings);
+            }
+        } else if (BillOperation.STATUS_DEFINITIVELY_FAILED.equals(op.getStatus())) {
+            throw new BusinessException("Bill creation for this operation key previously failed: " + op.getErrorMessage());
+        } else if (BillOperation.STATUS_NEEDS_REVIEW.equals(op.getStatus())) {
+            throw new BusinessException("Bill creation for this operation key requires review: " + op.getErrorMessage());
         }
 
-        // Attach initial payment record
-        Payment payment = new Payment(bill, request.getPaymentMethod(), grandTotal, PaymentStatus.PAID, null);
-        bill.addPayment(payment);
-
-        Bill saved = billRepository.save(bill);
-
-        if (operation != null) {
-            operation.setStatus(BillOperation.STATUS_SUCCEEDED);
-            operation.setBill(saved);
-            billOperationRepository.save(operation);
+        // 4. Execute bill creation inside its own transactional boundary
+        Bill saved;
+        try {
+            boolean isOffline = Boolean.TRUE.equals(request.getIsOfflineCreated());
+            Instant syncedAt = isOffline ? Instant.now() : null;
+            saved = billProcessingService.executeBillCreation(
+                    request,
+                    cashier,
+                    effectiveKey,
+                    request.getDeviceId(),
+                    request.getLocalBillReference(),
+                    isOffline,
+                    syncedAt
+            );
+        } catch (Exception ex) {
+            String errorMsg = ex.getMessage() != null ? ex.getMessage() : "Bill creation failed";
+            if (ex instanceof BusinessException || ex instanceof ResourceNotFoundException || ex instanceof IllegalArgumentException) {
+                billOperationRegistrationService.markFailed(effectiveKey, errorMsg);
+            } else {
+                billOperationRegistrationService.markNeedsReview(effectiveKey, errorMsg);
+            }
+            throw ex;
         }
 
-        auditLogService.recordEvent("BILL", saved.getId(), "BILL_CREATED", cashier,
-                null, "Created bill " + saved.getBillNumber() + " (Total: ₹" + saved.getGrandTotal() + ")", null);
+        // 5. Mark operation SUCCEEDED in isolated transaction
+        billOperationRegistrationService.markSucceeded(effectiveKey, saved);
 
-        log.info("Generated Bill #{} with UUID {} for ₹{}", saved.getBillNumber(), saved.getInvoiceUuid(), saved.getGrandTotal());
         return mapToResponse(saved, settings);
     }
 
@@ -304,19 +168,32 @@ public class BillService {
             BillOperation op = opOpt.get();
             verifyOperationAccess(op.getCashier(), currentUser);
 
-            if (BillOperation.STATUS_SUCCEEDED.equals(op.getStatus()) && op.getBill() != null) {
-                return BillOperationResponse.succeeded(key, mapToResponse(op.getBill(), settings), op.getCreatedAt());
-            }
-
-            if (BillOperation.STATUS_PROCESSING.equals(op.getStatus())) {
-                if (Duration.between(op.getCreatedAt(), Instant.now()).getSeconds() > 60) {
-                    return BillOperationResponse.definitivelyFailed(key, "Operation timed out with no bill committed", op.getCreatedAt());
+            if (BillOperation.STATUS_SUCCEEDED.equals(op.getStatus())) {
+                Bill bill = op.getBill();
+                if (bill == null) {
+                    bill = billRepository.findByIdempotencyKey(key).orElse(null);
                 }
-                return BillOperationResponse.processing(key, op.getCreatedAt());
+                if (bill != null) {
+                    return BillOperationResponse.succeeded(key, mapToResponse(bill, settings), op.getCreatedAt());
+                }
             }
 
             if (BillOperation.STATUS_DEFINITIVELY_FAILED.equals(op.getStatus())) {
                 return BillOperationResponse.definitivelyFailed(key, op.getErrorMessage(), op.getCreatedAt());
+            }
+
+            if (BillOperation.STATUS_NEEDS_REVIEW.equals(op.getStatus())) {
+                return BillOperationResponse.needsReview(key, op.getErrorMessage(), op.getCreatedAt());
+            }
+
+            if (BillOperation.STATUS_PROCESSING.equals(op.getStatus())) {
+                // Double check bill in database
+                Optional<Bill> raceBill = billRepository.findByIdempotencyKey(key);
+                if (raceBill.isPresent()) {
+                    return BillOperationResponse.succeeded(key, mapToResponse(raceBill.get(), settings), raceBill.get().getCreatedAt());
+                }
+                // Never mark failed merely because 60 seconds passed!
+                return BillOperationResponse.processing(key, op.getCreatedAt());
             }
         }
 
