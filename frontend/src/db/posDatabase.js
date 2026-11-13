@@ -269,13 +269,14 @@ export async function getRegisteredDevice() {
 }
 
 export async function saveOfflineLease(leaseData) {
+  const normalizedCashierId = !isNaN(Number(leaseData.cashierId)) ? Number(leaseData.cashierId) : leaseData.cashierId;
   return await db.offlineAuthorization.put({
-    cashierId: leaseData.cashierId,
+    cashierId: normalizedCashierId,
     deviceId: leaseData.deviceId,
     cashierUsername: leaseData.cashierUsername,
     cashierFullName: leaseData.cashierFullName,
-    leaseToken: leaseData.leaseToken,
-    publicKeySpkiBase64: leaseData.publicKeySpkiBase64,
+    leaseToken: leaseData.leaseToken || leaseData.token,
+    publicKeySpkiBase64: leaseData.publicKeySpkiBase64 || leaseData.publicKey,
     issuedAt: leaseData.issuedAt,
     expiresAt: leaseData.expiresAt,
     pinHash: leaseData.pinHash || null,
@@ -285,14 +286,19 @@ export async function saveOfflineLease(leaseData) {
 }
 
 export async function getOfflineLease(cashierId) {
-  if (cashierId) {
-    return await db.offlineAuthorization.get(cashierId);
+  if (cashierId !== undefined && cashierId !== null) {
+    const numId = Number(cashierId);
+    let lease = !isNaN(numId) ? await db.offlineAuthorization.get(numId) : null;
+    if (!lease) {
+      lease = await db.offlineAuthorization.get(String(cashierId));
+    }
+    if (lease && lease.leaseToken) return lease;
   }
-  return await db.offlineAuthorization.toCollection().first();
+  return await db.offlineAuthorization.filter(item => Boolean(item.leaseToken)).first();
 }
 
 export async function clearOfflineLeases() {
-  return await db.offlineAuthorization.clear();
+  return await db.offlineAuthorization.filter(item => item.cashierId !== 'cashier_pin').delete();
 }
 
 // =============================================================================

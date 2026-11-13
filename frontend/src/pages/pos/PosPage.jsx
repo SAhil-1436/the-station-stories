@@ -184,12 +184,14 @@ export default function PosPage() {
 
         if (syncEngine.isOnline && user?.id) {
           // Fetch and store backend RSA-2048 public key
+          let spkiKey = null;
           try {
             const pubKeyRes = await posApi.getPosPublicKey();
-            if (pubKeyRes?.publicKey) {
+            spkiKey = pubKeyRes?.publicKey || pubKeyRes?.spkiBase64 || pubKeyRes?.publicKeySpkiBase64;
+            if (spkiKey) {
               await posDb.appSettings.put({
                 key: 'pos_rsa_public_key',
-                value: pubKeyRes.publicKey,
+                value: spkiKey,
                 updatedAt: new Date().toISOString(),
               });
             }
@@ -212,7 +214,7 @@ export default function PosPage() {
                   cashierUsername: user.username,
                   cashierFullName: user.fullName || user.username,
                   leaseToken: leaseRes.leaseToken,
-                  publicKeySpkiBase64: leaseRes.publicKeySpkiBase64,
+                  publicKeySpkiBase64: leaseRes.publicKeySpkiBase64 || spkiKey,
                   issuedAt: leaseRes.issuedAt,
                   expiresAt: leaseRes.expiresAt,
                 });

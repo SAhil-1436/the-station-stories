@@ -66,6 +66,14 @@ public class PosDeviceService {
         Instant expiresAt = issuedAt.plus(LEASE_DURATION_HOURS, ChronoUnit.HOURS);
         String leaseId = UUID.randomUUID().toString();
 
+        // Build standard compact JWS header (RS256)
+        String headerJson = "{\"alg\":\"RS256\",\"typ\":\"POS-LEASE\"}";
+        String headerBase64 = Base64.getUrlEncoder().withoutPadding().encodeToString(headerJson.getBytes(StandardCharsets.UTF_8));
+
+        // Timestamps in Unix epoch milliseconds
+        long issuedAtMs = issuedAt.toEpochMilli();
+        long expiresAtMs = expiresAt.toEpochMilli();
+
         // Build canonical lease payload JSON
         String payloadJson = String.format(
                 "{\"leaseId\":\"%s\",\"deviceId\":\"%s\",\"cashierId\":%d,\"cashierUsername\":\"%s\",\"cashierFullName\":\"%s\",\"issuedAt\":%d,\"expiresAt\":%d}",
@@ -74,13 +82,14 @@ public class PosDeviceService {
                 cashier.getId(),
                 escapeJson(cashier.getUsername()),
                 escapeJson(cashier.getFullName() != null ? cashier.getFullName() : cashier.getUsername()),
-                issuedAt.getEpochSecond(),
-                expiresAt.getEpochSecond()
+                issuedAtMs,
+                expiresAtMs
         );
 
         String payloadBase64 = Base64.getUrlEncoder().withoutPadding().encodeToString(payloadJson.getBytes(StandardCharsets.UTF_8));
-        String signatureBase64 = keyManagementService.signPayload(payloadJson);
-        String leaseToken = payloadBase64 + "." + signatureBase64;
+        String contentToSign = headerBase64 + "." + payloadBase64;
+        String signatureBase64 = keyManagementService.signPayload(contentToSign);
+        String leaseToken = contentToSign + "." + signatureBase64;
 
         log.info("Issued 24h asymmetric offline lease for cashier {} on device {}", cashier.getUsername(), device.getDeviceId());
 

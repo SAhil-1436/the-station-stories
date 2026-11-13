@@ -16,6 +16,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.junit.jupiter.api.io.TempDir;
+import java.nio.file.Path;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -116,5 +118,27 @@ class PosDeviceServiceTest {
         DeviceRegistrationResponse res = posDeviceService.revokeDevice(deviceId, admin);
 
         assertThat(res.getIsRevoked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("issueOfflineLease: generates valid 3-part RS256 token with real key manager")
+    void testIssueOfflineLeaseWithRealKeyManager(@TempDir Path tempDir) {
+        PosKeyManagementService realKeyService = new PosKeyManagementService(tempDir.resolve("pos-keys").toString());
+        realKeyService.init();
+
+        PosDeviceService serviceWithRealKeys = new PosDeviceService(posDeviceRepository, realKeyService);
+        String deviceId = "DEV-TEST-REAL";
+        PosDevice device = new PosDevice(deviceId, "Counter POS", cashier);
+        when(posDeviceRepository.findByDeviceId(deviceId)).thenReturn(Optional.of(device));
+        when(posDeviceRepository.save(any(PosDevice.class))).thenReturn(device);
+
+        OfflineLeaseResponse lease = serviceWithRealKeys.issueOfflineLease(new OfflineLeaseRequest(deviceId), cashier);
+        assertThat(lease.getLeaseToken()).isNotNull();
+        String[] parts = lease.getLeaseToken().split("\\.");
+        assertThat(parts).hasSize(3);
+
+        // Verify with real key manager
+        String contentToSign = parts[0] + "." + parts[1];
+        assertThat(realKeyService.verifySignature(contentToSign, parts[2])).isTrue();
     }
 }

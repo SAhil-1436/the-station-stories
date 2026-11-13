@@ -35,6 +35,7 @@ import {
   getRegisteredDevice,
   getOfflineLease,
 } from '../../db/posDatabase';
+import { getActiveOfflineLease } from '../../utils/offlineAuth';
 
 /**
  * POS Checkout & Payment Finalization Modal (Phase 5.3 Correction + Phase 5.4 Offline PWA)
@@ -220,9 +221,13 @@ export default function PosCheckoutModal({
           throw new Error('This terminal is not enrolled as a registered POS device or has been revoked.');
         }
 
-        const lease = await getOfflineLease(user?.id);
-        if (!lease || !lease.leaseToken || (lease.expiresAt && new Date(lease.expiresAt) < new Date())) {
-          throw new Error('Offline lease is missing or expired. Connect online to renew your 24-hour cashier lease.');
+        const leaseVerification = await getActiveOfflineLease(device.deviceId, user?.id);
+        if (!leaseVerification.active) {
+          throw new Error(
+            leaseVerification.reason
+              ? `Offline authorization failed: ${leaseVerification.reason}. Connect online to renew your 24-hour cashier lease.`
+              : 'Offline lease is missing, expired, or invalid. Connect online to renew your 24-hour cashier lease.'
+          );
         }
 
         const localBill = await createLocalBill({

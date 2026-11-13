@@ -45,11 +45,14 @@ public class PosAuthController {
     @GetMapping("/public-key")
     @PreAuthorize("hasAnyAuthority('ROLE_CASHIER', 'ROLE_ADMIN')")
     public ResponseEntity<Map<String, String>> getPublicKey() {
+        String spki = keyManagementService.getPublicKeySpkiBase64();
         return ResponseEntity.ok(Map.of(
                 "algorithm", "RSA",
                 "format", "X.509/SPKI",
                 "hash", "SHA-256",
-                "spkiBase64", keyManagementService.getPublicKeySpkiBase64(),
+                "publicKey", spki,
+                "spkiBase64", spki,
+                "publicKeySpkiBase64", spki,
                 "pem", keyManagementService.getPublicKeyPem()
         ));
     }
